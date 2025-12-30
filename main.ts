@@ -1226,6 +1226,77 @@ class TagForgeSettingTab extends PluginSettingTab {
 				}));
 
 		// -------------------------------------------------------------------------
+		// Folder Aliases
+		// -------------------------------------------------------------------------
+
+		containerEl.createEl('h2', { text: 'Folder Aliases' });
+		containerEl.createEl('p', {
+			text: 'Override auto-generated tag names for specific folders. Useful when folder names don\'t match desired tags.',
+			cls: 'bbab-tf-description',
+		});
+
+		const aliasContainer = containerEl.createDiv({ cls: 'bbab-tf-alias-container' });
+
+		const renderAliases = () => {
+			aliasContainer.empty();
+
+			const aliases = Object.entries(this.plugin.settings.folderAliases);
+
+			if (aliases.length === 0) {
+				aliasContainer.createEl('p', {
+					text: 'No aliases configured. Add one below.',
+					cls: 'bbab-tf-no-aliases',
+				});
+			} else {
+				for (const [folderPath, tagName] of aliases) {
+					const aliasRow = aliasContainer.createDiv({ cls: 'bbab-tf-alias-row' });
+
+					aliasRow.createSpan({ text: folderPath, cls: 'bbab-tf-alias-folder' });
+					aliasRow.createSpan({ text: ' → ', cls: 'bbab-tf-alias-arrow' });
+					aliasRow.createSpan({ text: '#' + tagName, cls: 'bbab-tf-alias-tag' });
+
+					const removeBtn = aliasRow.createEl('button', { text: '×', cls: 'bbab-tf-alias-remove' });
+					removeBtn.addEventListener('click', async () => {
+						delete this.plugin.settings.folderAliases[folderPath];
+						await this.plugin.saveSettings();
+						renderAliases();
+					});
+				}
+			}
+
+			// Add new alias form
+			const addForm = aliasContainer.createDiv({ cls: 'bbab-tf-alias-add-form' });
+
+			const folderInput = addForm.createEl('input', {
+				type: 'text',
+				placeholder: 'Folder path (e.g., Personal/Projects)',
+				cls: 'bbab-tf-alias-input',
+			});
+
+			const tagInput = addForm.createEl('input', {
+				type: 'text',
+				placeholder: 'Tag name (e.g., my-projects)',
+				cls: 'bbab-tf-alias-input',
+			});
+
+			const addBtn = addForm.createEl('button', { text: 'Add Alias' });
+			addBtn.addEventListener('click', async () => {
+				const folder = folderInput.value.trim();
+				const tag = tagInput.value.trim().replace(/^#/, '').toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/^-|-$/g, '');
+
+				if (folder && tag) {
+					this.plugin.settings.folderAliases[folder] = tag;
+					await this.plugin.saveSettings();
+					folderInput.value = '';
+					tagInput.value = '';
+					renderAliases();
+				}
+			});
+		};
+
+		renderAliases();
+
+		// -------------------------------------------------------------------------
 		// Info Section
 		// -------------------------------------------------------------------------
 
