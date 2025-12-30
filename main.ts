@@ -82,15 +82,25 @@ export default class TagForgePlugin extends Plugin {
 			callback: () => this.tagCurrentFile(),
 		});
 
-		// Phase 2: Watch for new files
-		this.registerEvent(
-			this.app.vault.on('create', (file) => {
-				if (file instanceof TFile) {
-					// Small delay to ensure file is ready
-					setTimeout(() => this.handleFileCreate(file), 100);
-				}
-			})
-		);
+		// Emergency revert command
+		this.addCommand({
+			id: 'revert-all-auto-tags',
+			name: 'REVERT: Remove all auto-applied tags',
+			callback: () => this.revertAllAutoTags(),
+		});
+
+		// Phase 2: Watch for new files (only after vault is fully loaded)
+		this.app.workspace.onLayoutReady(() => {
+			this.registerEvent(
+				this.app.vault.on('create', (file) => {
+					if (file instanceof TFile) {
+						// Small delay to ensure file is ready
+						setTimeout(() => this.handleFileCreate(file), 100);
+					}
+				})
+			);
+			console.log('TagForge: File watcher activated');
+		});
 
 		console.log('TagForge: Plugin loaded successfully');
 	}
@@ -156,6 +166,63 @@ export default class TagForgePlugin extends Plugin {
 		// Apply tags to the file
 		await this.applyTagsToFile(file.path, tags);
 		console.log(`TagForge: Auto-tagged ${file.name} with ${tags.map(t => '#' + t).join(', ')}`);
+	}
+
+	async revertAllAutoTags() {
+		const trackedFiles = Object.keys(this.tagTracking);
+		if (trackedFiles.length === 0) {
+			new Notice('No auto-tags to revert');
+			return;
+		}
+
+		const confirmed = confirm(
+			`This will remove auto-applied tags from ${trackedFiles.length} files. Continue?`
+		);
+		if (!confirmed) {
+			return;
+		}
+
+		let reverted = 0;
+		let errors = 0;
+
+		for (const filePath of trackedFiles) {
+			const tracking = this.tagTracking[filePath];
+			if (!tracking || tracking.autoTags.length === 0) {
+				continue;
+			}
+
+			const file = this.app.vault.getAbstractFileByPath(filePath);
+			if (!file || !(file instanceof TFile)) {
+				errors++;
+				continue;
+			}
+
+			try {
+				await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+					if (frontmatter.tags && Array.isArray(frontmatter.tags)) {
+						// Remove only the auto-applied tags
+						frontmatter.tags = frontmatter.tags.filter(
+							(tag: string) => !tracking.autoTags.includes(tag)
+						);
+						// Remove empty tags array
+						if (frontmatter.tags.length === 0) {
+							delete frontmatter.tags;
+						}
+					}
+				});
+				reverted++;
+			} catch (e) {
+				console.error(`TagForge: Failed to revert ${filePath}`, e);
+				errors++;
+			}
+		}
+
+		// Clear tracking data
+		this.tagTracking = {};
+		await this.saveSettings();
+
+		new Notice(`Reverted ${reverted} files. ${errors > 0 ? `${errors} errors.` : ''}`);
+		console.log(`TagForge: Revert complete. ${reverted} files reverted, ${errors} errors.`);
 	}
 
 	getTagsForPath(filePath: string): string[] {
