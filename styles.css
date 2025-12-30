@@ -242,8 +242,11 @@
 
 .bbab-tf-bulk-preview-modal {
     padding: 1em;
-    min-width: 600px;
-    max-width: 800px;
+}
+
+.bbab-tf-bulk-preview-modal .modal-content {
+    width: 80vw;
+    max-width: 650px;
 }
 
 .bbab-tf-bulk-preview-modal h2 {
@@ -327,7 +330,14 @@
 }
 
 .bbab-tf-preview-header input[type="checkbox"] {
+    flex-shrink: 0;
     cursor: pointer;
+}
+
+.bbab-tf-preview-header .bbab-tf-preview-path {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .bbab-tf-tag-label {
@@ -345,6 +355,81 @@
 }
 
 /* ============================================================================
+   Folder Aliases (Phase 5)
+   ============================================================================ */
+
+.bbab-tf-alias-container {
+    margin-top: 0.5em;
+}
+
+.bbab-tf-no-aliases {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.bbab-tf-alias-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0.5em;
+    background: var(--background-secondary);
+    border-radius: 4px;
+    margin-bottom: 0.5em;
+}
+
+.bbab-tf-alias-folder {
+    font-family: var(--font-monospace);
+    color: var(--text-normal);
+}
+
+.bbab-tf-alias-arrow {
+    color: var(--text-muted);
+}
+
+.bbab-tf-alias-tag {
+    color: var(--text-accent);
+    font-weight: 500;
+}
+
+.bbab-tf-alias-remove {
+    margin-left: auto;
+    padding: 0.2em 0.5em;
+    background: transparent;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--text-muted);
+}
+
+.bbab-tf-alias-remove:hover {
+    background: var(--background-modifier-error);
+    color: var(--text-on-accent);
+    border-color: var(--background-modifier-error);
+}
+
+.bbab-tf-alias-add-form {
+    display: flex;
+    gap: 0.5em;
+    margin-top: 1em;
+    flex-wrap: wrap;
+}
+
+.bbab-tf-alias-input {
+    flex: 1;
+    min-width: 150px;
+    padding: 0.5em;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+}
+
+.bbab-tf-alias-add-form button {
+    padding: 0.5em 1em;
+    white-space: nowrap;
+}
+
+/* ============================================================================
    Folder Picker Modal (Phase 3)
    ============================================================================ */
 
@@ -356,6 +441,17 @@
 .bbab-tf-folder-picker-modal h2 {
     margin-top: 0;
     margin-bottom: 0.5em;
+}
+
+.bbab-tf-folder-options {
+    margin-bottom: 1em;
+}
+
+.bbab-tf-subdirs-option {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+    cursor: pointer;
 }
 
 .bbab-tf-folder-search {

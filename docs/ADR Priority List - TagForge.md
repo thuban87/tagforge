@@ -4,80 +4,96 @@
 
 ---
 
-## Phase 1: Foundation (MVP)
+## Phase 1: Foundation (MVP) - COMPLETE
 
 | Order | Feature | Status | Notes |
 |-------|---------|--------|-------|
 | 1 | Plugin scaffold & build setup | **Done** | TypeScript, esbuild, manifest.json |
 | 2 | Settings infrastructure | **Done** | Settings class, data persistence |
 | 3 | Settings UI tab | **Done** | Basic configuration interface |
-| 4 | Single file tagging | **Bug** | Command runs but tags not applied - TFile check issue |
+| 4 | Single file tagging | **Done** | Bug fixed: changed to `instanceof TFile` |
 
-**Phase 1 Goal:** Plugin loads, has settings, can manually add a tag to a file.
+**Phase 1 Goal:** Plugin loads, has settings, can manually add a tag to a file. ✓
 
 ---
 
-## Phase 2: Auto-Watch (Priority 1)
+## Phase 2: Auto-Watch (Priority 1) - COMPLETE
 
 | Order | Feature | Status | Notes |
 |-------|---------|--------|-------|
-| 5 | File create watcher | Planned | `vault.on('create')` event |
-| 6 | Basic folder rules | Planned | Folder path → tags mapping |
-| 7 | Apply tags on file create | Planned | New files get tags based on location |
-| 8 | File move detection | Planned | `vault.on('rename')` with path change |
+| 5 | File create watcher | **Done** | `vault.on('create')` wrapped in `onLayoutReady()` |
+| 6 | Basic folder rules | **Done** | Uses hierarchical inheritance from Phase 5 |
+| 7 | Apply tags on file create | **Done** | New files get tags based on location |
+| 8 | File move detection | Planned | Moved to Phase 6 |
 
-**Phase 2 Goal:** New files automatically get tags based on folder. Moves detected.
+**Phase 2 Goal:** New files automatically get tags based on folder. ✓
+
+### Phase 2.5: Enhanced Revert Commands (Bonus)
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Revert auto-tags only | **Done** | Removes only tracked tags, preserves manual |
+| Nuclear revert | **Done** | Remove ALL tags from vault with double-confirm |
+| Date-filtered revert | **Done** | DatePickerModal to select dates to revert |
 
 ---
 
-## Phase 3: Bulk & Selective Push (Priority 2)
+## Phase 3: Bulk & Selective Push (Priority 2) - COMPLETE
 
 | Order | Feature | Status | Notes |
 |-------|---------|--------|-------|
-| 9 | Bulk apply command | Planned | Process all vault files |
-| 10 | Selective folder push | Planned | Apply rules to specific subtree |
-| 11 | Preview/dry-run mode | Planned | Show changes before applying |
-| 12 | Tag tracking database | Planned | Record which tags plugin applied |
+| 9 | Bulk apply command | **Done** | Full vault with preview |
+| 10 | Selective folder push | **Done** | FolderPickerModal with subdirectory option |
+| 11 | Preview/dry-run mode | **Done** | Enhanced BulkPreviewModal with level toggles |
+| 12 | Tag tracking database | **Done** | Stored in data.json under `tagTracking` |
 
-**Phase 3 Goal:** Can retroactively tag existing files with preview.
+**Phase 3 Goal:** Can retroactively tag existing files with preview. ✓
 
 ---
 
-## Phase 4: One-Time Batch Tagger
+## Phase 4: One-Time Batch Tagger - ABSORBED
+
+Phase 4 features were absorbed into Phase 3's enhanced preview modal:
+
+| Original Feature | Implementation |
+|-----------------|----------------|
+| File selection UI | Checkboxes in BulkPreviewModal |
+| Batch tag input | Additional tags input field |
+| Apply batch tags | "Apply to selected only" option |
+
+**Phase 4 Goal:** Achieved through Phase 3 enhanced modal. ✓
+
+---
+
+## Phase 5: Hierarchical Inheritance (Priority 3) - COMPLETE
 
 | Order | Feature | Status | Notes |
 |-------|---------|--------|-------|
-| 13 | File selection UI | Planned | Modal to select multiple files |
-| 14 | Batch tag input | Planned | Enter tags to apply |
-| 15 | Apply batch tags | Planned | Tags applied, NOT tracked as auto-tags |
+| 16 | Depth configuration | **Done** | Number input (no max limit) |
+| 17 | Folder name → tag conversion | **Done** | Auto-converts to lowercase-hyphenated |
+| 18 | Folder aliases | **Done** | Settings UI with multi-tag support |
+| 19 | Inheritance engine | **Done** | `getTagsForPath()` walks folder tree |
 
-**Phase 4 Goal:** Can select files and apply arbitrary tags (separate from rules).
-
----
-
-## Phase 5: Hierarchical Inheritance (Priority 3)
-
-| Order | Feature | Status | Notes |
-|-------|---------|--------|-------|
-| 16 | Depth configuration | Planned | Setting for how many levels to inherit |
-| 17 | Folder name → tag conversion | Planned | "Personal Projects" → "personal-projects" |
-| 18 | Folder aliases | Planned | Custom folder-to-tag name mappings |
-| 19 | Inheritance engine | Planned | Walk up folder tree, collect tags |
-
-**Phase 5 Goal:** Files inherit tags from parent folders up to configured depth.
+**Phase 5 Goal:** Files inherit tags from parent folders up to configured depth. ✓
 
 ---
 
-## Phase 6: Move Handling
+## Phase 6: Move Handling - NEXT UP
 
 | Order | Feature | Status | Notes |
 |-------|---------|--------|-------|
 | 20 | Move confirmation modal | Planned | Prompt on file path change |
 | 21 | Update tags on confirm | Planned | Remove old auto-tags, apply new |
 | 22 | Undo move option | Planned | Restore file and original tags |
-| 23 | Protected tags | Planned | Tags plugin should never touch |
+| 23 | Protected tags | Planned | Settings already exist (`protectedTags`) |
 
 **Phase 6 Goal:** Graceful handling of file moves with user control.
+
+**Implementation Notes:**
+- Use `vault.on('rename')` - fires for both renames and moves
+- Detect move by checking if parent folder changed
+- Store original path/tags temporarily for undo
+- `showMoveConfirmation` setting already exists
 
 ---
 
@@ -85,7 +101,7 @@
 
 | Order | Feature | Status | Notes |
 |-------|---------|--------|-------|
-| 24 | Ignore patterns | Planned | Skip folders (Templates, .obsidian) |
+| 24 | Ignore patterns | **Done** | `ignorePaths` setting already implemented |
 | 25 | Filename pattern rules | Planned | Regex/glob on filenames |
 | 26 | Content-based rules | Planned | Search content for patterns |
 | 27 | Template integration | Planned | Tags based on template origin |
@@ -101,9 +117,20 @@
 | 28 | Undo/history | Planned | Rollback last operation |
 | 29 | Tag report dashboard | Planned | Visual overview of tag landscape |
 | 30 | Validation warnings | Planned | Missing tags, orphaned tags |
-| 31 | Inline tag option | Planned | Alternative to frontmatter |
 
 **Phase 8 Goal:** Production-ready with great UX.
+
+---
+
+## Phase 9: Mobile Optimization (User Requested)
+
+| Order | Feature | Status | Notes |
+|-------|---------|--------|-------|
+| 31 | Responsive modal CSS | Planned | All modals work on mobile |
+| 32 | Touch-friendly UI | Planned | Larger tap targets, better spacing |
+| 33 | Mobile testing | Planned | Test on Obsidian mobile app |
+
+**Phase 9 Goal:** Full functionality on mobile devices.
 
 ---
 
@@ -121,9 +148,11 @@
 
 ## Technical Debt / Known Issues
 
-| Item | Priority | Notes |
-|------|----------|-------|
-| TFile type check failing | High | `file.constructor.name !== 'TFile'` doesn't work in production. Use `instanceof TFile` instead. |
+| Item | Priority | Status |
+|------|----------|--------|
+| ~~TFile type check~~ | ~~High~~ | **RESOLVED** - Changed to `instanceof TFile` |
+
+*No current technical debt items.*
 
 ---
 

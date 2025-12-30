@@ -12,7 +12,7 @@ interface TagForgeSettings {
 
 	// Folder-based rules (Phase 2+)
 	folderMappings: Record<string, string[]>;
-	folderAliases: Record<string, string>;
+	folderAliases: Record<string, string[]>;  // folder path -> array of tag names
 
 	// Exclusions and protection
 	ignorePaths: string[];
@@ -406,13 +406,26 @@ export default class TagForgePlugin extends Plugin {
 		// Sort folders alphabetically
 		folders.sort();
 
-		new FolderPickerModal(this.app, folders, async (selectedFolder) => {
-			const files = this.app.vault.getMarkdownFiles().filter(f =>
-				f.path.startsWith(selectedFolder + '/')
-			);
+		new FolderPickerModal(this.app, folders, async (selectedFolder, includeSubdirs) => {
+			let files: TFile[];
+
+			if (includeSubdirs) {
+				// Include all files in folder and subdirectories
+				files = this.app.vault.getMarkdownFiles().filter(f =>
+					f.path.startsWith(selectedFolder + '/')
+				);
+			} else {
+				// Only files directly in this folder (not subdirectories)
+				files = this.app.vault.getMarkdownFiles().filter(f => {
+					if (!f.path.startsWith(selectedFolder + '/')) return false;
+					// Check if there are additional path separators after the folder
+					const relativePath = f.path.slice(selectedFolder.length + 1);
+					return !relativePath.includes('/') && !relativePath.includes('\\');
+				});
+			}
 
 			if (files.length === 0) {
-				new Notice(`No markdown files in ${selectedFolder}`);
+				new Notice(`No markdown files in ${selectedFolder}${includeSubdirs ? ' (including subdirectories)' : ''}`);
 				return;
 			}
 
@@ -423,7 +436,8 @@ export default class TagForgePlugin extends Plugin {
 				return;
 			}
 
-			new BulkPreviewModal(this.app, items, selectedFolder, async (results) => {
+			const description = includeSubdirs ? `${selectedFolder} (+ subdirs)` : selectedFolder;
+			new BulkPreviewModal(this.app, items, description, async (results) => {
 				await this.executeBulkApply(results);
 			}).open();
 		}).open();
@@ -476,13 +490,19 @@ export default class TagForgePlugin extends Plugin {
 			const folderName = pathParts[i];
 			if (folderName) {
 				const folderPath = pathParts.slice(0, i + 1).join('/');
-				let tag: string;
-				if (this.settings.folderAliases[folderPath]) {
-					tag = this.settings.folderAliases[folderPath];
+				const aliasValue = this.settings.folderAliases[folderPath];
+
+				if (aliasValue) {
+					// Handle both old format (string) and new format (string[])
+					if (Array.isArray(aliasValue)) {
+						tagsByLevel.push(aliasValue);
+					} else {
+						// Legacy: single string
+						tagsByLevel.push([aliasValue as unknown as string]);
+					}
 				} else {
-					tag = this.folderNameToTag(folderName);
+					tagsByLevel.push([this.folderNameToTag(folderName)]);
 				}
-				tagsByLevel.push([tag]);
 			}
 		}
 
@@ -528,8 +548,15 @@ export default class TagForgePlugin extends Plugin {
 			if (folderName) {
 				// Check for folder alias first
 				const folderPath = pathParts.slice(0, i + 1).join('/');
-				if (this.settings.folderAliases[folderPath]) {
-					tags.push(this.settings.folderAliases[folderPath]);
+				const aliasValue = this.settings.folderAliases[folderPath];
+
+				if (aliasValue) {
+					// Handle both old format (string) and new format (string[])
+					if (Array.isArray(aliasValue)) {
+						tags.push(...aliasValue);
+					} else {
+						tags.push(aliasValue as unknown as string);
+					}
 				} else {
 					// Convert folder name to tag format
 					const tag = this.folderNameToTag(folderName);
@@ -810,6 +837,10 @@ class BulkPreviewModal extends Modal {
 
 	renderList() {
 		if (!this.listEl) return;
+
+		// Preserve scroll position
+		const scrollTop = this.listEl.scrollTop;
+
 		this.listEl.empty();
 
 		let filesWithChanges = 0;
@@ -888,6 +919,9 @@ class BulkPreviewModal extends Modal {
 			this.applyBtn.textContent = `Apply to ${results.length} files`;
 			this.applyBtn.disabled = results.length === 0;
 		}
+
+		// Restore scroll position
+		this.listEl.scrollTop = scrollTop;
 	}
 
 	computeFolderTags(item: EnhancedPreviewItem): string[] {
@@ -938,11 +972,11 @@ class BulkPreviewModal extends Modal {
 
 class FolderPickerModal extends Modal {
 	folders: string[];
-	onSelect: (folder: string) => void;
+	onSelect: (folder: string, includeSubdirs: boolean) => void;
 	filteredFolders: string[];
-	selectedIndex: number = 0;
+	includeSubdirs: boolean = true;
 
-	constructor(app: App, folders: string[], onSelect: (folder: string) => void) {
+	constructor(app: App, folders: string[], onSelect: (folder: string, includeSubdirs: boolean) => void) {
 		super(app);
 		this.folders = folders;
 		this.filteredFolders = folders;
@@ -955,6 +989,16 @@ class FolderPickerModal extends Modal {
 		contentEl.addClass('bbab-tf-folder-picker-modal');
 
 		contentEl.createEl('h2', { text: 'Select folder to tag' });
+
+		// Include subdirectories option
+		const optionsDiv = contentEl.createDiv({ cls: 'bbab-tf-folder-options' });
+		const subdirsLabel = optionsDiv.createEl('label', { cls: 'bbab-tf-subdirs-option' });
+		const subdirsCheckbox = subdirsLabel.createEl('input', { type: 'checkbox' });
+		subdirsCheckbox.checked = this.includeSubdirs;
+		subdirsLabel.createSpan({ text: ' Include subdirectories' });
+		subdirsCheckbox.addEventListener('change', () => {
+			this.includeSubdirs = subdirsCheckbox.checked;
+		});
 
 		// Search input
 		const searchInput = contentEl.createEl('input', {
@@ -974,7 +1018,7 @@ class FolderPickerModal extends Modal {
 				});
 				itemEl.addEventListener('click', () => {
 					this.close();
-					this.onSelect(folder);
+					this.onSelect(folder, this.includeSubdirs);
 				});
 			}
 		};
@@ -1224,6 +1268,89 @@ class TagForgeSettingTab extends PluginSettingTab {
 						.filter(t => t.length > 0);
 					await this.plugin.saveSettings();
 				}));
+
+		// -------------------------------------------------------------------------
+		// Folder Aliases
+		// -------------------------------------------------------------------------
+
+		containerEl.createEl('h2', { text: 'Folder Aliases' });
+		containerEl.createEl('p', {
+			text: 'Override auto-generated tag names for specific folders. Useful when folder names don\'t match desired tags.',
+			cls: 'bbab-tf-description',
+		});
+
+		const aliasContainer = containerEl.createDiv({ cls: 'bbab-tf-alias-container' });
+
+		const renderAliases = () => {
+			aliasContainer.empty();
+
+			const aliases = Object.entries(this.plugin.settings.folderAliases);
+
+			if (aliases.length === 0) {
+				aliasContainer.createEl('p', {
+					text: 'No aliases configured. Add one below.',
+					cls: 'bbab-tf-no-aliases',
+				});
+			} else {
+				for (const [folderPath, tagNames] of aliases) {
+					const aliasRow = aliasContainer.createDiv({ cls: 'bbab-tf-alias-row' });
+
+					aliasRow.createSpan({ text: folderPath, cls: 'bbab-tf-alias-folder' });
+					aliasRow.createSpan({ text: ' → ', cls: 'bbab-tf-alias-arrow' });
+
+					// Handle both old format (string) and new format (string[])
+					const tagsArray = Array.isArray(tagNames) ? tagNames : [tagNames];
+					aliasRow.createSpan({
+						text: tagsArray.map(t => '#' + t).join(', '),
+						cls: 'bbab-tf-alias-tag',
+					});
+
+					const removeBtn = aliasRow.createEl('button', { text: '×', cls: 'bbab-tf-alias-remove' });
+					removeBtn.addEventListener('click', async () => {
+						delete this.plugin.settings.folderAliases[folderPath];
+						await this.plugin.saveSettings();
+						renderAliases();
+					});
+				}
+			}
+
+			// Add new alias form
+			const addForm = aliasContainer.createDiv({ cls: 'bbab-tf-alias-add-form' });
+
+			const folderInput = addForm.createEl('input', {
+				type: 'text',
+				placeholder: 'Folder path (e.g., Personal/Projects)',
+				cls: 'bbab-tf-alias-input',
+			});
+
+			const tagInput = addForm.createEl('input', {
+				type: 'text',
+				placeholder: 'Tags (comma-separated, e.g., dating, relationships)',
+				cls: 'bbab-tf-alias-input',
+			});
+
+			const addBtn = addForm.createEl('button', { text: 'Add Alias' });
+			addBtn.addEventListener('click', async () => {
+				const folder = folderInput.value.trim();
+				const tagsRaw = tagInput.value;
+
+				// Parse comma-separated tags
+				const tags = tagsRaw
+					.split(',')
+					.map(t => t.trim().replace(/^#/, '').toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/^-|-$/g, ''))
+					.filter(t => t.length > 0);
+
+				if (folder && tags.length > 0) {
+					this.plugin.settings.folderAliases[folder] = tags;
+					await this.plugin.saveSettings();
+					folderInput.value = '';
+					tagInput.value = '';
+					renderAliases();
+				}
+			});
+		};
+
+		renderAliases();
 
 		// -------------------------------------------------------------------------
 		// Info Section

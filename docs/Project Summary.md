@@ -114,14 +114,15 @@ When a file moves:
 
 Build incrementally with testing at each phase:
 
-1. **Phase 1:** Plugin scaffold, settings UI, basic single-file tagging
-2. **Phase 2:** Auto-watch on file create
-3. **Phase 3:** Folder rules engine
-4. **Phase 4:** Hierarchical inheritance
-5. **Phase 5:** Move detection
-6. **Phase 6:** Batch tagger
+1. **Phase 1:** Plugin scaffold, settings UI, basic single-file tagging ✓
+2. **Phase 2:** Auto-watch on file create ✓
+3. **Phase 3:** Bulk operations with preview modal ✓
+4. **Phase 4:** (Absorbed into Phase 3) ✓
+5. **Phase 5:** Hierarchical inheritance, folder aliases ✓
+6. **Phase 6:** Move detection (NEXT)
 7. **Phase 7:** Advanced rules (content, filename, template)
 8. **Phase 8:** Polish (undo, reports, validation)
+9. **Phase 9:** Mobile optimization
 
 ---
 
