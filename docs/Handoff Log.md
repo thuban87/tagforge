@@ -1,285 +1,366 @@
 # TagForge Handoff Log
 
 **Last Updated:** December 30, 2024
-**Current Phase:** Phase 1 - Foundation (IN PROGRESS)
-**Current Branch:** N/A (repo not initialized)
-**Total Features Planned:** 31 (across 8 phases)
+**Current Phase:** Phase 5 COMPLETE - Ready for Phase 6
+**Current Branch:** phase-5-hierarchical-enhancements (ready to merge)
+**GitHub:** Initialized and connected
+**Total Features Planned:** 33 (across 9 phases)
 
 ---
 
-## Session: Phase 1 Foundation Build - COMPLETE (with bug)
+## Session: December 30, 2024 - Phases 1-5 Complete
 
 ### Session Summary
 
-Built the complete plugin scaffold with TypeScript, esbuild, settings infrastructure, and basic tagging functionality. Encountered and resolved Google Drive File Stream npm compatibility issues. Decided to move development to local filesystem for better npm compatibility.
+Massive progress session. Fixed Phase 1 bug, implemented Phase 2 auto-watch (with safety fixes after mass-tagging incident), added comprehensive revert commands, built full Phase 3 bulk operations with enhanced preview modal, and completed Phase 5 hierarchical inheritance features. Phase 4 was absorbed into Phase 3's enhanced preview modal.
 
-### Files Created
+### What Was Accomplished
 
-| File | Purpose | Status |
-|------|---------|--------|
-| `package.json` | npm project config with TypeScript + esbuild | Done |
-| `tsconfig.json` | TypeScript compiler configuration | Done |
-| `manifest.json` | Obsidian plugin manifest (id: tagforge) | Done |
-| `esbuild.config.mjs` | Build script with watch mode support | Done |
-| `main.ts` | Plugin class, settings interface, settings tab | Done |
-| `styles.css` | Plugin styles with `bbab-tf-` prefix | Done |
-| `main.js` | Compiled plugin (built successfully) | Done |
-| `install.bat` | Build helper script (deprecated - moving to local dev) | Done |
-
-### Implementation Details
-
-**Settings Interface (TagForgeSettings):**
-- `inheritDepth` (number) - How many folder levels to inherit tags from
-- `tagFormat` ('frontmatter' | 'inline') - Where to store tags
-- `showMoveConfirmation` (boolean) - Prompt before updating tags on file move
-- `folderMappings` - Explicit folder-to-tags overrides
-- `folderAliases` - Custom folder name to tag name mappings
-- `ignorePaths` - Folders to skip (default: Templates, .obsidian)
-- `protectedTags` - Tags plugin should never touch
-- `contentRules` / `filenameRules` - Placeholders for Phase 7
-
-**Tag Tracking Interface (TagTrackingEntry):**
-- `autoTags` - Array of tags plugin applied to file
-- `lastUpdated` - ISO timestamp of last update
-
-**Plugin Features Implemented:**
-- `loadSettings()` / `saveSettings()` with proper data persistence
-- `TagForgeSettingTab` with full settings UI
-- Command: "Tag current file based on folder"
-- `getTagsForPath()` - Generates tags from folder hierarchy
-- `folderNameToTag()` - Converts "Personal Projects" to "personal-projects"
-- `applyTagsToFile()` - Applies tags via frontmatter or inline
-- Tag tracking for later smart removal
-
-### Technical Issues Encountered
-
-**Google Drive File Stream + npm:**
-- npm cannot reliably write to Google Drive virtual filesystem
-- Causes "bad file descriptor" and permission errors
-- **Solution:** Moving development to local filesystem at `C:\Users\bwales\projects\obsidian-plugins\tagforge\`
-
-**TFile Type Check Bug:**
-- `file.constructor.name !== 'TFile'` doesn't work in production/minified builds
-- Command says "Applied tags" but nothing changes in file
-- **Fix needed:** Use `instanceof TFile` instead
-
-### Testing Results
-
-- [x] Plugin loads in Obsidian
-- [x] Settings tab appears with all controls
-- [x] Settings persist after reload
-- [ ] "Tag current file" command works - **BUG: Says applied but doesn't change file**
-
-### Directory Change
-
-Moving from Google Drive to local filesystem:
-- **Old:** `G:\My Drive\IT\Obsidian Vault\My Notebooks\.obsidian\plugins\tagforge\`
-- **New (source):** `C:\Users\bwales\projects\obsidian-plugins\tagforge\`
-- **Deploy target:** Same Google Drive path (for Obsidian to load)
+| Phase | Status | Notes |
+|-------|--------|-------|
+| 1 | COMPLETE | Bug fixed, esbuild deploys directly |
+| 2 | COMPLETE | Auto-watch with onLayoutReady guard |
+| 2.5 | COMPLETE | Enhanced revert commands (bonus) |
+| 3 | COMPLETE | Bulk ops + enhanced preview modal |
+| 4 | ABSORBED | Merged into Phase 3 preview modal |
+| 5 | COMPLETE | Folder aliases UI + multi-tag support |
 
 ---
 
-## Session: Planning & Documentation - COMPLETE
+## Phase 1: Foundation - COMPLETE
 
-### Session Summary
+### Bug Fix
+- **Problem:** `file.constructor.name !== 'TFile'` fails in minified production builds
+- **Solution:** Changed to `!(file instanceof TFile)` in 3 locations
+- **Files modified:** `main.ts` lines 185, 208, 229
 
-Initial planning session conducted in the main Obsidian vault. Analyzed the existing [obsidian-automatic-tags](https://github.com/Jamalam360/obsidian-automatic-tags) plugin as a reference, identified limitations, and designed TagForge as a comprehensive replacement with hierarchical inheritance, true auto-watch, and intelligent tag tracking.
+### Build Configuration
+- Updated `esbuild.config.mjs` to output directly to deploy directory:
+  ```javascript
+  outfile: "G:/My Drive/IT/Obsidian Vault/My Notebooks/.obsidian/plugins/tagforge/main.js"
+  ```
 
-### Decisions Made
+### Settings UI Change
+- Changed `inheritDepth` from slider to number input (no max limit)
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| Plugin name | TagForge | Evokes building/forging a tag system |
-| Tag format | Flat tags | Better graph view filtering than nested tags |
-| Tag storage | Frontmatter (default) | Standard, clean, with inline option |
-| Tag tracking | Internal plugin database | Invisible to user, enables smart removal |
-| CSS prefix | `bbab-tf-` | Avoid conflicts, consistent with dev conventions |
-| Development environment | Windows 11 PC | User's daily driver, ready to go |
-| Development location | `.obsidian/plugins/tagforge/` | Directly in test vault |
+---
 
-### User Context
+## Phase 2: Auto-Watch - COMPLETE
 
-- Recently diagnosed with ADHD, building "external brain" system
-- 99th percentile visual working memory - graph view is critical
-- ~300 files across 5-7 folder levels deep
-- Primary goals: organization, easy filtering, linked document navigation
-- Uses flat tags in frontmatter
+### File Create Watcher
+- Added `vault.on('create')` event listener
+- Only processes `.md` files
+- Respects ignored paths setting
 
-### Priority Order Established
+### Critical Safety Fix
+**INCIDENT:** Plugin mass-tagged entire vault on enable because Obsidian fires `create` events during initial vault indexing.
 
-1. **Auto-watch** - Files tagged automatically on create/move (most important)
-2. **Bulk/selective push** - Retroactive tagging with preview
-3. **Hierarchical inheritance** - Folder ancestry becomes tags
+**SOLUTION:** Wrapped watcher registration in `onLayoutReady()`:
+```typescript
+this.app.workspace.onLayoutReady(() => {
+    this.registerEvent(
+        this.app.vault.on('create', (file) => { ... })
+    );
+});
+```
 
-### Documentation Created
+### New Method
+- `handleFileCreate(file: TFile)` - Processes new files, logs to console
 
-| File | Purpose |
+---
+
+## Phase 2.5: Enhanced Revert Commands - COMPLETE
+
+Added three revert commands for safety and recovery:
+
+### 1. Revert All Auto-Tags
+- Command: `REVERT: Remove all auto-applied tags`
+- Removes only tags tracked in `tagTracking`
+- Preserves manually-added tags
+- Clears tracking data after revert
+
+### 2. Nuclear Revert
+- Command: `REVERT: Remove ALL tags from vault (nuclear option)`
+- Double-confirmation required
+- Removes ALL tags from ALL markdown files
+- Use case: Starting completely fresh
+
+### 3. Date-Filtered Revert
+- Command: `REVERT: Remove auto-tags by date`
+- Opens `DatePickerModal` showing dates with file counts
+- Checkboxes for each date
+- Select All / Select None buttons
+- Only reverts files from selected dates
+
+---
+
+## Phase 3: Bulk & Selective Push - COMPLETE
+
+### Commands Added
+1. `BULK: Apply tags to entire vault (with preview)`
+2. `BULK: Apply tags to specific folder (with preview)`
+
+### Enhanced Preview Modal (BulkPreviewModal)
+
+Complete rewrite with advanced features:
+
+**Folder Tags Section:**
+- Level toggles: Checkbox for each folder depth level
+- "Skip all folder tags" option
+- Dynamically shows only levels present in selected files
+
+**Additional Tags Section:**
+- Text input for comma-separated tags
+- Auto-formats tags (lowercase, hyphens)
+- Radio buttons: Apply to "All files" or "Selected only"
+
+**Files Section:**
+- Stats: "Files (X total, Y selected, Z with changes)"
+- Select All / Select None buttons
+- Scrollable list with checkboxes per file
+- Shows current tags, tags to add (color-coded)
+- "(no changes)" indicator for files already tagged
+- **Scroll position preserved** when toggling checkboxes
+
+**Apply Button:**
+- Dynamic text: "Apply to X files"
+- Disabled when no changes to apply
+
+### Folder Picker Modal (FolderPickerModal)
+- Searchable folder list
+- **Include subdirectories** checkbox (checked by default)
+- When unchecked, only processes direct children
+
+### Technical Details
+- `generateEnhancedPreview()` - Creates preview items with tags by level
+- `getFolderTagsByLevel()` - Returns tags at each folder depth
+- `executeBulkApply()` - Applies tags from computed results
+- Backward compatible with old alias format
+
+---
+
+## Phase 4: One-Time Batch Tagger - ABSORBED
+
+Phase 4 features were absorbed into Phase 3's enhanced preview modal:
+- File selection checkboxes = batch selection
+- Additional tags input = arbitrary tag application
+- "Selected only" option = targeted tagging
+
+No separate Phase 4 implementation needed.
+
+---
+
+## Phase 5: Hierarchical Inheritance - COMPLETE
+
+### Folder Aliases UI
+Added to Settings tab with:
+- List of existing aliases with remove buttons
+- Add form: folder path input + tags input
+- Displays as: `Personal/Projects → #my-projects, #work`
+
+### Multi-Tag Aliases
+- Changed `folderAliases` type from `Record<string, string>` to `Record<string, string[]>`
+- Comma-separated input: `dating, relationships, love-life`
+- Backward compatible with old single-string format
+- Updated `getTagsForPath()` and `getFolderTagsByLevel()` to handle arrays
+
+### Include Subdirectories Option
+- Checkbox in folder picker modal
+- Checked by default (include subdirs)
+- When unchecked, only direct children of selected folder
+
+---
+
+## Files Modified This Session
+
+| File | Changes |
 |------|---------|
-| `CLAUDE.md` | Instructions for Claude sessions |
-| `docs/Project Summary.md` | Full context for new sessions |
-| `docs/ADR-001-Architecture.md` | Core architecture decisions |
-| `docs/ADR Priority List - TagForge.md` | Development roadmap (8 phases, 31 features) |
-| `docs/Handoff Log.md` | This file - session continuity |
-
-### Reference Material Reviewed
-
-- [obsidian-automatic-tags](https://github.com/Jamalam360/obsidian-automatic-tags) - MIT licensed, ~150 lines
-- User's WordPress plugin [bbab-service-center](https://github.com/Brads-Bits-and-Bytes/bbab-service-center) - OOP architecture reference
+| `main.ts` | Bug fixes, auto-watch, revert commands, bulk ops, modals, aliases UI |
+| `styles.css` | Modal styles, date picker, bulk preview, folder picker, aliases |
+| `esbuild.config.mjs` | Deploy path updated |
+| `.gitignore` | Created for git repo |
 
 ---
 
-## What Needs to Happen Next
+## Current Plugin Commands
 
-### Phase 1: Foundation
+| Command | Description |
+|---------|-------------|
+| Tag current file based on folder | Manual single-file tagging |
+| REVERT: Remove all auto-applied tags | Undo tracked auto-tags |
+| REVERT: Remove ALL tags from vault (nuclear) | Clear all tags everywhere |
+| REVERT: Remove auto-tags by date | Date picker for selective revert |
+| BULK: Apply tags to entire vault (with preview) | Full vault tagging |
+| BULK: Apply tags to specific folder (with preview) | Folder-based tagging |
 
-1. Initialize npm project with TypeScript + esbuild
-2. Create plugin scaffold (main.ts, manifest.json, package.json)
-3. Implement settings infrastructure
-4. Build settings UI tab
-5. Test basic single-file tagging
+---
 
-### Development Environment Setup
+## Current Settings
 
-- Install Node.js if not present
-- Install Obsidian "Hot Reload" plugin for faster dev cycle
-- Run `npm run dev` for watch mode during development
+| Setting | Type | Description |
+|---------|------|-------------|
+| Inheritance depth | number | Folder levels to inherit (no max) |
+| Tag format | dropdown | frontmatter or inline |
+| Show move confirmation | toggle | Prompt on file move (Phase 6) |
+| Ignored folders | textarea | Paths to skip |
+| Protected tags | textarea | Tags to never touch |
+| Folder aliases | UI list | Custom folder→tags mappings |
+
+---
+
+## Technical Notes
+
+### Tag Application Method
+Uses `app.fileManager.processFrontMatter()` - Obsidian's official API for safe YAML manipulation. This is why it works reliably vs. raw text manipulation.
+
+### Tag Tracking
+All auto-applied tags stored in `data.json` under `tagTracking`:
+```json
+{
+  "tagTracking": {
+    "path/to/file.md": {
+      "autoTags": ["tag1", "tag2"],
+      "lastUpdated": "2024-12-30T18:57:35.529Z"
+    }
+  }
+}
+```
+
+### Deploy Workflow
+1. Edit files in `C:\Users\bwales\projects\obsidian-plugins\tagforge\`
+2. Run `npm run build`
+3. `main.js` auto-deploys to Google Drive vault
+4. Manually copy `styles.css` to deploy dir
+5. Reload Obsidian
+
+---
+
+## Git Status
+
+- **Repo initialized:** Yes
+- **GitHub connected:** Yes
+- **Branch strategy:** Phase branches, merge after each phase
+- **Current branch:** `phase-5-hierarchical-enhancements`
+- **Commits:** User handles all git operations
+
+---
+
+## Remaining Phases
+
+| Phase | Focus | Priority |
+|-------|-------|----------|
+| 6 | Move Handling | Next up |
+| 7 | Advanced Rules | Content, filename, template |
+| 8 | Polish & UX | Undo, reports, validation |
+| 9 | Mobile Optimization | User requested |
+
+### Phase 6: Move Handling (from ADR)
+- Move confirmation modal on file path change
+- Update tags on confirm (remove old auto-tags, apply new)
+- Undo move option
+- Protected tags enforcement
+
+### Phase 7: Advanced Rules
+- Filename pattern rules (regex/glob)
+- Content-based rules (search patterns)
+- Template integration
+
+### Phase 8: Polish & UX
+- Undo/history
+- Tag report dashboard
+- Validation warnings
+
+### Phase 9: Mobile Optimization (User Request)
+- Responsive CSS for all modals
+- Touch-friendly UI elements
+- Test on Obsidian mobile
+
+---
+
+## Lessons Learned This Session
+
+1. **onLayoutReady is critical** - Always wrap vault event listeners to prevent firing during initial load
+2. **Obsidian's processFrontMatter** - The correct way to modify YAML, handles all edge cases
+3. **Preserve scroll position** - Store and restore scrollTop when re-rendering dynamic lists
+4. **Modal width in Obsidian** - Target `.modal-content` for sizing, not the outer container
+5. **Backward compatibility** - Handle both old and new data formats when changing settings structure
 
 ---
 
 ## Next Session Prompt
 
 ```
-Phase 1 Bug Fix + Phase 2 Start
+Phase 6: Move Handling
 
 **Directory:** C:\Users\bwales\projects\obsidian-plugins\tagforge\
 **Deploy to:** G:\My Drive\IT\Obsidian Vault\My Notebooks\.obsidian\plugins\tagforge\
+**Current branch:** Create new branch `phase-6-move-handling`
 
-**Current state:**
-- Phase 1 scaffold COMPLETE (plugin loads, settings work)
-- BUG: "Tag current file" command says success but doesn't modify file
-- Root cause: `file.constructor.name !== 'TFile'` fails in production builds
+**Context:**
+- Phases 1-5 COMPLETE
+- Plugin has auto-watch on file create, bulk tagging with preview, folder aliases
+- Git repo initialized, user handles all git commands
 
-**This session - Part 1: Fix the bug**
+**Phase 6 Requirements (from ADR-001):**
+1. File move detection via `vault.on('rename')` with path change
+2. Move confirmation modal:
+   - "File moved from X to Y. Update tags?"
+   - Options: Yes / No / Undo Move
+3. On confirm: Remove old auto-tags, apply new tags based on new location
+4. On undo: Restore file to original path with original tags
+5. Protected tags: Never remove tags in protectedTags setting
 
-1. Fix TFile type checking in main.ts:
-   - Import `TFile` from 'obsidian'
-   - Replace `file.constructor.name !== 'TFile'` with `!(file instanceof TFile)`
-   - Check all occurrences (applyTagsToFile, applyFrontmatterTags, applyInlineTags)
+**Implementation Notes:**
+- `vault.on('rename')` fires for both renames and moves
+- Detect move by checking if parent folder changed
+- Store original path/tags temporarily for undo
+- Use existing `applyTagsToFile()` and tag tracking infrastructure
 
-2. Update esbuild.config.mjs to output directly to deploy directory:
-   - outfile: "G:/My Drive/IT/Obsidian Vault/My Notebooks/.obsidian/plugins/tagforge/main.js"
+**Settings already exist:**
+- `showMoveConfirmation` (boolean) - Check before showing modal
+- `protectedTags` (string[]) - Tags to preserve
 
-3. Test the fix:
-   - Run `npm run build`
-   - Reload plugin in Obsidian
-   - Run "Tag current file" command
-   - Verify tags appear in frontmatter
+**After Phase 6:**
+- Phase 7: Mobile optimization (responsive CSS, touch UI)
+- Phase 8: Polish & UX
 
-**This session - Part 2: Start Phase 2 (Auto-Watch)**
-
-4. Add file create watcher:
-   - `this.registerEvent(this.app.vault.on('create', ...))`
-   - Auto-tag new files based on folder location
-
-5. Test auto-watch:
-   - Create a new file in a folder
-   - Verify it gets tagged automatically
-
-**Reference docs:**
-- docs/ADR Priority List - TagForge.md (Phase 2 details)
-- docs/ADR-001-Architecture.md (file watching decisions)
-
-**After this session:**
-Update Handoff Log with results, mark Phase 1 complete, update Phase 2 status.
+**Important:**
+- User handles all git commands - don't run git commands
+- Pause after phase completion for user to commit
+- Copy styles.css manually after build (esbuild only handles main.js)
 ```
-
----
-
-## Phase Status
-
-| Phase | Focus | Status |
-|-------|-------|--------|
-| 1 | Foundation (scaffold, settings, basic tagging) | **IN PROGRESS** - Needs testing |
-| 2 | Auto-Watch (file create/move detection) | Planned |
-| 3 | Bulk & Selective Push | Planned |
-| 4 | One-Time Batch Tagger | Planned |
-| 5 | Hierarchical Inheritance | Planned |
-| 6 | Move Handling | Planned |
-| 7 | Advanced Rules | Planned |
-| 8 | Polish & UX | Planned |
-
----
-
-## Lessons Learned / Tips
-
-### From Phase 1 Build
-- **Google Drive + npm don't mix:** Use a local temp folder for npm operations, then copy compiled files back
-- **`install.bat` script:** Always use this for builds on this machine
-- **Obsidian file API:** Use `file.constructor.name !== 'TFile'` check since getAbstractFileByPath returns TFile | TFolder
-- **Frontmatter processing:** Use `app.fileManager.processFrontMatter()` for clean YAML manipulation
-
-### From Planning Session
-- Obsidian API doesn't allow intercepting file moves before they happen - must detect after and offer undo
-- Nested tags (`#parent/child`) search includes children when searching parent - not ideal for graph filtering
-- Flat tags with hierarchical inheritance gives best of both worlds
 
 ---
 
 ## Quick Reference
 
-### Naming Conventions
-
-```typescript
-// Classes: PascalCase
-class TagForgePlugin extends Plugin { }
-class TagForgeSettings { }
-
-// Files: kebab-case
-main.ts
-settings.ts
-watcher.ts
-
-// CSS Classes: bbab-tf- prefix
-.bbab-tf-settings-container { }
-```
-
-### Key Files
-
-| File | Purpose |
-|------|---------|
-| `main.ts` | Plugin source code |
-| `main.js` | Compiled plugin (what Obsidian loads) |
-| `manifest.json` | Plugin metadata |
-| `package.json` | Dependencies and scripts |
-| `styles.css` | Plugin styles |
-| `install.bat` | Build helper script (Google Drive workaround) |
-| `data.json` | Settings + tag tracking (auto-generated by Obsidian) |
-
 ### Development Commands
-
-**On Google Drive (this machine):**
 ```bash
-# Double-click install.bat to rebuild
-# OR in PowerShell:
-.\install.bat
+cd C:\Users\bwales\projects\obsidian-plugins\tagforge
+npm run build                    # Production build
+npm run dev                      # Watch mode
 ```
 
-**On local filesystem (normal):**
+### Deploy After Build
 ```bash
-npm install      # Install dependencies
-npm run dev      # Watch mode (auto-rebuild on save)
-npm run build    # Production build
+cp styles.css "G:/My Drive/IT/Obsidian Vault/My Notebooks/.obsidian/plugins/tagforge/"
 ```
 
-### Testing Workflow
+### Required Files in Deploy Directory
+- `manifest.json` (REQUIRED)
+- `main.js` (REQUIRED)
+- `styles.css` (optional but needed for styling)
+- `data.json` (auto-created by Obsidian)
 
-1. Make changes to TypeScript
-2. Save (auto-compiles if `npm run dev` running)
-3. Reload Obsidian: Ctrl+P → "Reload app without saving"
-4. Or toggle plugin off/on in Settings → Community Plugins
+### Reload Plugin
+Ctrl+P → "Reload app without saving" OR toggle plugin off/on
 
 ---
 
 ## Archived Sessions
 
-_(Sessions will be moved here after subsequent sessions are complete to keep the log manageable)_
+### Planning & Documentation Session
+Initial planning, architecture decisions, documentation creation. See above for details.
+
+### Phase 1 Foundation Build Session
+Initial scaffold, settings infrastructure. Had TFile bug. See above for details.

@@ -242,8 +242,11 @@
 
 .bbab-tf-bulk-preview-modal {
     padding: 1em;
-    width: 90vw;
-    max-width: 700px;
+}
+
+.bbab-tf-bulk-preview-modal .modal-content {
+    width: 80vw;
+    max-width: 650px;
 }
 
 .bbab-tf-bulk-preview-modal h2 {
@@ -438,6 +441,17 @@
 .bbab-tf-folder-picker-modal h2 {
     margin-top: 0;
     margin-bottom: 0.5em;
+}
+
+.bbab-tf-folder-options {
+    margin-bottom: 1em;
+}
+
+.bbab-tf-subdirs-option {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+    cursor: pointer;
 }
 
 .bbab-tf-folder-search {
