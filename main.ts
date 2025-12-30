@@ -9,6 +9,7 @@ interface TagForgeSettings {
 	inheritDepth: number;
 	tagFormat: 'frontmatter' | 'inline';
 	showMoveConfirmation: boolean;
+	rememberedMoveAction: 'continue' | 'leave' | null;
 
 	// Folder-based rules (Phase 2+)
 	folderMappings: Record<string, string[]>;
@@ -45,6 +46,7 @@ const DEFAULT_SETTINGS: TagForgeSettings = {
 	inheritDepth: 3,
 	tagFormat: 'frontmatter',
 	showMoveConfirmation: true,
+	rememberedMoveAction: null,
 	folderMappings: {},
 	folderAliases: {},
 	ignorePaths: ['Templates', '.obsidian'],
@@ -65,6 +67,7 @@ const DEFAULT_DATA: TagForgeData = {
 export default class TagForgePlugin extends Plugin {
 	settings: TagForgeSettings;
 	tagTracking: Record<string, TagTrackingEntry>;
+	pendingUndoPath: string | null = null; // Track when we're undoing a move to prevent modal loop
 
 	async onload() {
 		console.log('TagForge: Loading plugin');
@@ -117,6 +120,7 @@ export default class TagForgePlugin extends Plugin {
 		});
 
 		// Phase 2: Watch for new files (only after vault is fully loaded)
+		// Phase 6: Watch for file moves (renames that change parent folder)
 		this.app.workspace.onLayoutReady(() => {
 			this.registerEvent(
 				this.app.vault.on('create', (file) => {
@@ -126,6 +130,17 @@ export default class TagForgePlugin extends Plugin {
 					}
 				})
 			);
+
+			// Phase 6: Handle file moves
+			this.registerEvent(
+				this.app.vault.on('rename', (file, oldPath) => {
+					if (file instanceof TFile) {
+						// Small delay to ensure file is ready
+						setTimeout(() => this.handleFileRename(file, oldPath), 100);
+					}
+				})
+			);
+
 			console.log('TagForge: File watcher activated');
 		});
 
@@ -193,6 +208,166 @@ export default class TagForgePlugin extends Plugin {
 		// Apply tags to the file
 		await this.applyTagsToFile(file.path, tags);
 		console.log(`TagForge: Auto-tagged ${file.name} with ${tags.map(t => '#' + t).join(', ')}`);
+	}
+
+	// -------------------------------------------------------------------------
+	// Phase 6: File Move Handling
+	// -------------------------------------------------------------------------
+
+	async handleFileRename(file: TFile, oldPath: string) {
+		// Only process markdown files
+		if (file.extension !== 'md') {
+			return;
+		}
+
+		// Check if this is an undo move (Cancel was clicked) - skip to prevent loop
+		if (this.pendingUndoPath && file.path === this.pendingUndoPath) {
+			console.log('TagForge: Skipping undo move event');
+			this.pendingUndoPath = null;
+			return;
+		}
+
+		// Check if this is a move (folder changed) vs just a rename
+		const oldFolder = this.getParentFolder(oldPath);
+		const newFolder = this.getParentFolder(file.path);
+
+		if (oldFolder === newFolder) {
+			// Just a rename, not a move - update tracking key if needed
+			if (this.tagTracking[oldPath]) {
+				this.tagTracking[file.path] = this.tagTracking[oldPath];
+				delete this.tagTracking[oldPath];
+				await this.saveSettings();
+			}
+			return;
+		}
+
+		// Check if new path is in ignored folders
+		for (const ignorePath of this.settings.ignorePaths) {
+			if (file.path.startsWith(ignorePath + '/') || file.path.startsWith(ignorePath + '\\')) {
+				console.log(`TagForge: Moved file is in ignored path, skipping`);
+				return;
+			}
+		}
+
+		console.log(`TagForge: File moved from "${oldFolder}" to "${newFolder}"`);
+
+		// Decide what to do based on settings
+		if (!this.settings.showMoveConfirmation) {
+			// Setting is off - silently retag
+			await this.applyMoveRetag(file, oldPath);
+			return;
+		}
+
+		if (this.settings.rememberedMoveAction) {
+			// User has a remembered choice
+			if (this.settings.rememberedMoveAction === 'continue') {
+				await this.applyMoveRetag(file, oldPath);
+			} else if (this.settings.rememberedMoveAction === 'leave') {
+				// Just update tracking key, don't change tags
+				if (this.tagTracking[oldPath]) {
+					this.tagTracking[file.path] = this.tagTracking[oldPath];
+					delete this.tagTracking[oldPath];
+					await this.saveSettings();
+				}
+			}
+			return;
+		}
+
+		// Show confirmation modal
+		new MoveConfirmationModal(
+			this.app,
+			file.name,
+			oldFolder,
+			newFolder,
+			async (result) => {
+				await this.handleMoveResult(file, oldPath, result);
+			}
+		).open();
+	}
+
+	async handleMoveResult(file: TFile, oldPath: string, result: MoveConfirmationResult) {
+		// Save remembered choice if applicable
+		if (result.remember && (result.action === 'continue' || result.action === 'leave')) {
+			this.settings.rememberedMoveAction = result.action;
+			await this.saveSettings();
+			new Notice(`TagForge: Will remember "${result.action === 'continue' ? 'Continue' : 'Leave Tags'}" for future moves`);
+		}
+
+		switch (result.action) {
+			case 'continue':
+				await this.applyMoveRetag(file, oldPath);
+				break;
+
+			case 'leave':
+				// Just update tracking key, don't change tags
+				if (this.tagTracking[oldPath]) {
+					this.tagTracking[file.path] = this.tagTracking[oldPath];
+					delete this.tagTracking[oldPath];
+					await this.saveSettings();
+				}
+				new Notice('Tags left unchanged');
+				break;
+
+			case 'cancel':
+				// Move file back to original location
+				try {
+					// Set flag to prevent this undo from triggering another modal
+					this.pendingUndoPath = oldPath;
+					await this.app.vault.rename(file, oldPath);
+					new Notice('Move cancelled - file restored to original location');
+				} catch (e) {
+					this.pendingUndoPath = null;
+					console.error('TagForge: Failed to restore file', e);
+					new Notice('Failed to restore file to original location');
+				}
+				break;
+		}
+	}
+
+	async applyMoveRetag(file: TFile, oldPath: string) {
+		// Step 1: Remove old auto-tags (if any were tracked)
+		const oldTracking = this.tagTracking[oldPath];
+		if (oldTracking && oldTracking.autoTags.length > 0) {
+			await this.removeAutoTagsFromFile(file, oldTracking.autoTags);
+			delete this.tagTracking[oldPath];
+		}
+
+		// Step 2: Apply new tags based on new location
+		const newTags = this.getTagsForPath(file.path);
+		if (newTags.length > 0) {
+			await this.applyTagsToFile(file.path, newTags);
+			console.log(`TagForge: Retagged ${file.name} with ${newTags.map(t => '#' + t).join(', ')}`);
+			new Notice(`Retagged with: ${newTags.map(t => '#' + t).join(', ')}`);
+		} else {
+			await this.saveSettings();
+			new Notice('Auto-tags removed (new location has no tags)');
+		}
+	}
+
+	async removeAutoTagsFromFile(file: TFile, tagsToRemove: string[]) {
+		// Filter out protected tags - never remove those
+		const safeToRemove = tagsToRemove.filter(t => !this.settings.protectedTags.includes(t));
+
+		if (safeToRemove.length === 0) {
+			return;
+		}
+
+		await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+			if (frontmatter.tags && Array.isArray(frontmatter.tags)) {
+				frontmatter.tags = frontmatter.tags.filter(
+					(tag: string) => !safeToRemove.includes(tag)
+				);
+				if (frontmatter.tags.length === 0) {
+					delete frontmatter.tags;
+				}
+			}
+		});
+	}
+
+	getParentFolder(filePath: string): string {
+		const parts = filePath.split(/[/\\]/);
+		parts.pop(); // Remove filename
+		return parts.join('/') || '';
 	}
 
 	async revertAllAutoTags() {
@@ -1156,6 +1331,104 @@ class DatePickerModal extends Modal {
 }
 
 // ============================================================================
+// Move Confirmation Modal (Phase 6)
+// ============================================================================
+
+interface MoveConfirmationResult {
+	action: 'continue' | 'leave' | 'cancel';
+	remember: boolean;
+}
+
+class MoveConfirmationModal extends Modal {
+	fileName: string;
+	oldFolder: string;
+	newFolder: string;
+	onResult: (result: MoveConfirmationResult) => void;
+	rememberChoice: boolean = false;
+
+	constructor(
+		app: App,
+		fileName: string,
+		oldFolder: string,
+		newFolder: string,
+		onResult: (result: MoveConfirmationResult) => void
+	) {
+		super(app);
+		this.fileName = fileName;
+		this.oldFolder = oldFolder || '(vault root)';
+		this.newFolder = newFolder || '(vault root)';
+		this.onResult = onResult;
+	}
+
+	onOpen() {
+		const { contentEl } = this;
+		contentEl.empty();
+		contentEl.addClass('bbab-tf-move-modal');
+
+		contentEl.createEl('h2', { text: 'File Moved' });
+
+		// File info
+		const infoEl = contentEl.createDiv({ cls: 'bbab-tf-move-info' });
+		infoEl.createEl('p', { text: `"${this.fileName}" was moved.` });
+
+		const pathInfo = infoEl.createDiv({ cls: 'bbab-tf-move-paths' });
+		pathInfo.createEl('div', { text: `From: ${this.oldFolder}`, cls: 'bbab-tf-move-path' });
+		pathInfo.createEl('div', { text: `To: ${this.newFolder}`, cls: 'bbab-tf-move-path' });
+
+		// Explanation with button descriptions
+		const descEl = contentEl.createDiv({ cls: 'bbab-tf-move-description' });
+		descEl.createEl('p', { text: 'Choose how to handle tags:' });
+		const optionsList = descEl.createEl('ul', { cls: 'bbab-tf-move-options' });
+		optionsList.createEl('li', { text: 'Continue — Remove old folder tags, apply new folder tags' });
+		optionsList.createEl('li', { text: 'Leave Tags — Keep current tags, don\'t add new ones' });
+		optionsList.createEl('li', { text: 'Cancel — Move file back to original folder' });
+
+		// Remember choice checkbox
+		const rememberLabel = contentEl.createEl('label', { cls: 'bbab-tf-remember-choice' });
+		const rememberCb = rememberLabel.createEl('input', { type: 'checkbox' });
+		rememberLabel.createSpan({ text: ' Remember my choice' });
+		rememberCb.addEventListener('change', () => {
+			this.rememberChoice = rememberCb.checked;
+		});
+
+		// Buttons
+		const buttonContainer = contentEl.createDiv({ cls: 'bbab-tf-move-buttons' });
+
+		const continueBtn = buttonContainer.createEl('button', {
+			text: 'Continue',
+			cls: 'mod-cta',
+		});
+		continueBtn.addEventListener('click', () => {
+			this.close();
+			this.onResult({ action: 'continue', remember: this.rememberChoice });
+		});
+
+		const leaveBtn = buttonContainer.createEl('button', {
+			text: 'Leave Tags',
+		});
+		leaveBtn.addEventListener('click', () => {
+			this.close();
+			this.onResult({ action: 'leave', remember: this.rememberChoice });
+		});
+
+		const cancelBtn = buttonContainer.createEl('button', {
+			text: 'Cancel',
+			cls: 'mod-warning',
+		});
+		cancelBtn.addEventListener('click', () => {
+			this.close();
+			// Cancel doesn't respect "remember" - you wouldn't want to auto-cancel moves
+			this.onResult({ action: 'cancel', remember: false });
+		});
+	}
+
+	onClose() {
+		const { contentEl } = this;
+		contentEl.empty();
+	}
+}
+
+// ============================================================================
 // Settings Tab
 // ============================================================================
 
@@ -1211,13 +1484,37 @@ class TagForgeSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
+		// Determine current move behavior for dropdown
+		let currentMoveBehavior: string;
+		if (!this.plugin.settings.showMoveConfirmation) {
+			currentMoveBehavior = 'always-retag';
+		} else if (this.plugin.settings.rememberedMoveAction === 'continue') {
+			currentMoveBehavior = 'always-retag';
+		} else if (this.plugin.settings.rememberedMoveAction === 'leave') {
+			currentMoveBehavior = 'always-keep';
+		} else {
+			currentMoveBehavior = 'ask';
+		}
+
 		new Setting(containerEl)
-			.setName('Show move confirmation')
-			.setDesc('Ask before updating tags when a file is moved')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.showMoveConfirmation)
+			.setName('When files are moved')
+			.setDesc('Choose how to handle tags when files move between folders')
+			.addDropdown(dropdown => dropdown
+				.addOption('ask', 'Ask every time')
+				.addOption('always-retag', 'Always retag (remove old, add new)')
+				.addOption('always-keep', 'Always keep current tags')
+				.setValue(currentMoveBehavior)
 				.onChange(async (value) => {
-					this.plugin.settings.showMoveConfirmation = value;
+					if (value === 'ask') {
+						this.plugin.settings.showMoveConfirmation = true;
+						this.plugin.settings.rememberedMoveAction = null;
+					} else if (value === 'always-retag') {
+						this.plugin.settings.showMoveConfirmation = false;
+						this.plugin.settings.rememberedMoveAction = null;
+					} else if (value === 'always-keep') {
+						this.plugin.settings.showMoveConfirmation = true;
+						this.plugin.settings.rememberedMoveAction = 'leave';
+					}
 					await this.plugin.saveSettings();
 				}));
 

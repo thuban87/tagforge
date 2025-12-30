@@ -485,3 +485,121 @@
 .bbab-tf-folder-item:hover {
     background: var(--background-secondary);
 }
+
+/* ============================================================================
+   Move Confirmation Modal (Phase 6)
+   ============================================================================ */
+
+.bbab-tf-move-modal {
+    padding: 1.5em;
+    min-width: 350px;
+}
+
+.bbab-tf-move-modal h2 {
+    margin-top: 0;
+    margin-bottom: 1em;
+}
+
+.bbab-tf-move-info {
+    margin-bottom: 1em;
+}
+
+.bbab-tf-move-info p {
+    margin: 0 0 0.5em 0;
+    font-weight: 500;
+}
+
+.bbab-tf-move-paths {
+    background: var(--background-secondary);
+    border-radius: 4px;
+    padding: 0.75em 1em;
+    font-family: var(--font-monospace);
+    font-size: 0.9em;
+}
+
+.bbab-tf-move-path {
+    margin: 0.25em 0;
+    color: var(--text-muted);
+}
+
+.bbab-tf-move-description {
+    margin-bottom: 1em;
+}
+
+.bbab-tf-move-description p {
+    margin: 0 0 0.5em 0;
+    color: var(--text-muted);
+}
+
+.bbab-tf-move-options {
+    margin: 0;
+    padding-left: 1.5em;
+    font-size: 0.9em;
+    color: var(--text-muted);
+}
+
+.bbab-tf-move-options li {
+    margin: 0.3em 0;
+}
+
+.bbab-tf-remember-choice {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+    cursor: pointer;
+    margin-bottom: 1.5em;
+    color: var(--text-muted);
+    font-size: 0.9em;
+}
+
+.bbab-tf-remember-choice input[type="checkbox"] {
+    cursor: pointer;
+}
+
+.bbab-tf-move-buttons {
+    display: flex;
+    gap: 0.5em;
+    justify-content: flex-end;
+}
+
+.bbab-tf-move-buttons button {
+    padding: 0.5em 1em;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+/* ============================================================================
+   Settings: Remembered Choice Display (Phase 6)
+   ============================================================================ */
+
+.bbab-tf-remembered-choice {
+    display: flex;
+    align-items: center;
+    gap: 1em;
+    padding: 0.75em 1em;
+    background: var(--background-secondary);
+    border-radius: 4px;
+    margin-top: 0.5em;
+    margin-bottom: 1em;
+    font-size: 0.9em;
+}
+
+.bbab-tf-remembered-choice span {
+    color: var(--text-muted);
+}
+
+.bbab-tf-clear-btn {
+    padding: 0.25em 0.75em;
+    font-size: 0.85em;
+    background: transparent;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--text-muted);
+}
+
+.bbab-tf-clear-btn:hover {
+    background: var(--background-modifier-error);
+    color: var(--text-on-accent);
+    border-color: var(--background-modifier-error);
+}

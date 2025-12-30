@@ -1,14 +1,74 @@
 # TagForge Handoff Log
 
 **Last Updated:** December 30, 2024
-**Current Phase:** Phase 5 COMPLETE - Ready for Phase 6
-**Current Branch:** phase-5-hierarchical-enhancements (ready to merge)
+**Current Phase:** Phase 6 COMPLETE - Ready for Phase 7
+**Current Branch:** main (user to create phase-6-move-handling branch)
 **GitHub:** Initialized and connected
 **Total Features Planned:** 33 (across 9 phases)
 
 ---
 
-## Session: December 30, 2024 - Phases 1-5 Complete
+## Session: December 30, 2024 - Phase 6 Complete
+
+### Session Summary
+
+Implemented file move handling with confirmation modal. When files are moved between folders, users can choose to retag (apply new folder-based tags), leave tags unchanged, or cancel (undo the move). Added "Remember my choice" option for streamlined batch moves, with settings UI to view/clear the remembered preference.
+
+### What Was Accomplished
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| 6 | COMPLETE | Move handling with confirmation modal + remember choice |
+
+---
+
+## Phase 6: Move Handling - COMPLETE
+
+### Features Implemented
+
+**Move Detection:**
+- `vault.on('rename')` event handler (wrapped in `onLayoutReady`)
+- Detects folder changes vs simple renames
+- Only triggers for `.md` files
+- Respects ignored paths
+
+**Move Confirmation Modal:**
+- Shows old folder → new folder paths
+- Three actions:
+  - **Continue** - Remove old auto-tags, apply new folder-based tags
+  - **Leave Tags** - Keep current tags unchanged
+  - **Cancel** - Move file back to original location (undo)
+- "Remember my choice" checkbox (for Continue/Leave only)
+
+**Settings Integration:**
+- `showMoveConfirmation` toggle (existing, now functional)
+- When OFF: silently retags on move (default behavior)
+- When ON + remembered choice: uses remembered action silently
+- When ON + no remembered choice: shows modal
+- Remembered choice display with "Clear" button in settings
+- Disabling toggle clears remembered choice
+
+**Tag Management:**
+- `removeAutoTagsFromFile()` - Removes only tracked auto-tags
+- Respects protected tags (never removed)
+- Updates tag tracking on path changes
+
+### New Setting
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| rememberedMoveAction | 'continue' \| 'leave' \| null | null | Stored remembered choice |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `main.ts` | Added `rememberedMoveAction` setting, `MoveConfirmationModal`, `handleFileRename`, `handleMoveResult`, `applyMoveRetag`, `removeAutoTagsFromFile`, `getParentFolder`, updated settings UI |
+| `styles.css` | Added move modal styles, remembered choice display styles |
+
+---
+
+## Previous Session: December 30, 2024 - Phases 1-5 Complete
 
 ### Session Summary
 
@@ -240,7 +300,7 @@ All auto-applied tags stored in `data.json` under `tagTracking`:
 - **Repo initialized:** Yes
 - **GitHub connected:** Yes
 - **Branch strategy:** Phase branches, merge after each phase
-- **Current branch:** `phase-5-hierarchical-enhancements`
+- **Current branch:** `main` (user to create phase branch as needed)
 - **Commits:** User handles all git operations
 
 ---
@@ -249,19 +309,13 @@ All auto-applied tags stored in `data.json` under `tagTracking`:
 
 | Phase | Focus | Priority |
 |-------|-------|----------|
-| 6 | Move Handling | Next up |
+| 6 | Move Handling | COMPLETE |
 | 7 | Advanced Rules | Content, filename, template |
 | 8 | Polish & UX | Undo, reports, validation |
 | 9 | Mobile Optimization | User requested |
 
-### Phase 6: Move Handling (from ADR)
-- Move confirmation modal on file path change
-- Update tags on confirm (remove old auto-tags, apply new)
-- Undo move option
-- Protected tags enforcement
-
-### Phase 7: Advanced Rules
-- Filename pattern rules (regex/glob)
+### Phase 7: Advanced Rules (Future - user noted this needs more planning)
+- Filename pattern rules (regex/glob) - requires opt-in setting
 - Content-based rules (search patterns)
 - Template integration
 
@@ -284,45 +338,33 @@ All auto-applied tags stored in `data.json` under `tagTracking`:
 3. **Preserve scroll position** - Store and restore scrollTop when re-rendering dynamic lists
 4. **Modal width in Obsidian** - Target `.modal-content` for sizing, not the outer container
 5. **Backward compatibility** - Handle both old and new data formats when changing settings structure
+6. **Undo move via vault.rename()** - Can programmatically move files back to original path
 
 ---
 
 ## Next Session Prompt
 
 ```
-Phase 6: Move Handling
+Phase 7: Advanced Rules (Optional) OR Phase 9: Mobile Optimization
 
 **Directory:** C:\Users\bwales\projects\obsidian-plugins\tagforge\
 **Deploy to:** G:\My Drive\IT\Obsidian Vault\My Notebooks\.obsidian\plugins\tagforge\
-**Current branch:** Create new branch `phase-6-move-handling`
+**Current branch:** main (create new branch for next phase)
 
 **Context:**
-- Phases 1-5 COMPLETE
-- Plugin has auto-watch on file create, bulk tagging with preview, folder aliases
+- Phases 1-6 COMPLETE
+- Plugin has: auto-watch on create/move, bulk tagging with preview, folder aliases, move handling with "remember choice"
 - Git repo initialized, user handles all git commands
 
-**Phase 6 Requirements (from ADR-001):**
-1. File move detection via `vault.on('rename')` with path change
-2. Move confirmation modal:
-   - "File moved from X to Y. Update tags?"
-   - Options: Yes / No / Undo Move
-3. On confirm: Remove old auto-tags, apply new tags based on new location
-4. On undo: Restore file to original path with original tags
-5. Protected tags: Never remove tags in protectedTags setting
+**Phase 7 (Advanced Rules) - User noted this needs careful planning:**
+- Filename pattern rules should be OPT-IN (not default behavior)
+- Requires a whole system to build out
+- May be deferred if user wants to focus on mobile first
 
-**Implementation Notes:**
-- `vault.on('rename')` fires for both renames and moves
-- Detect move by checking if parent folder changed
-- Store original path/tags temporarily for undo
-- Use existing `applyTagsToFile()` and tag tracking infrastructure
-
-**Settings already exist:**
-- `showMoveConfirmation` (boolean) - Check before showing modal
-- `protectedTags` (string[]) - Tags to preserve
-
-**After Phase 6:**
-- Phase 7: Mobile optimization (responsive CSS, touch UI)
-- Phase 8: Polish & UX
+**Phase 9 (Mobile Optimization) - Alternative next step:**
+- Responsive CSS for all modals
+- Touch-friendly UI elements
+- Test on Obsidian mobile
 
 **Important:**
 - User handles all git commands - don't run git commands
