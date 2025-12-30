@@ -1,0 +1,176 @@
+/* TagForge Plugin Styles
+ * Prefix: bbab-tf- (Brad's Bits and Bytes - TagForge)
+ */
+
+/* ============================================================================
+   Settings Container
+   ============================================================================ */
+
+.bbab-tf-settings-container {
+    max-width: 800px;
+}
+
+.bbab-tf-settings-container h1 {
+    margin-bottom: 0.5em;
+}
+
+.bbab-tf-settings-container h2 {
+    margin-top: 2em;
+    margin-bottom: 0.5em;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.bbab-tf-description {
+    color: var(--text-muted);
+    margin-bottom: 1em;
+}
+
+/* ============================================================================
+   Text Areas in Settings
+   ============================================================================ */
+
+.bbab-tf-settings-container textarea {
+    min-height: 100px;
+    width: 100%;
+    font-family: var(--font-monospace);
+    font-size: 0.9em;
+}
+
+/* ============================================================================
+   Info/Example Sections
+   ============================================================================ */
+
+.bbab-tf-info {
+    background: var(--background-secondary);
+    border-radius: 8px;
+    padding: 1em;
+    margin-top: 1em;
+}
+
+.bbab-tf-info p {
+    margin: 0.5em 0;
+}
+
+.bbab-tf-example {
+    background: var(--background-primary);
+    border-radius: 4px;
+    padding: 0.75em 1em;
+    margin: 0.75em 0;
+    font-family: var(--font-monospace);
+    font-size: 0.9em;
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    flex-wrap: wrap;
+}
+
+.bbab-tf-example code {
+    background: var(--background-modifier-code);
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+}
+
+/* ============================================================================
+   Future: Tag Report Styles (Phase 8)
+   ============================================================================ */
+
+.bbab-tf-tag-report {
+    padding: 1em;
+}
+
+.bbab-tf-tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5em;
+}
+
+.bbab-tf-tag-item {
+    background: var(--background-modifier-success);
+    color: var(--text-on-accent);
+    padding: 0.25em 0.75em;
+    border-radius: 1em;
+    font-size: 0.85em;
+}
+
+/* ============================================================================
+   Future: Modal Styles (Phase 6 - Move Confirmation)
+   ============================================================================ */
+
+.bbab-tf-modal {
+    padding: 1.5em;
+}
+
+.bbab-tf-modal-title {
+    font-size: 1.2em;
+    font-weight: 600;
+    margin-bottom: 1em;
+}
+
+.bbab-tf-modal-content {
+    margin-bottom: 1.5em;
+}
+
+.bbab-tf-modal-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5em;
+}
+
+.bbab-tf-button {
+    padding: 0.5em 1em;
+    border-radius: 4px;
+    cursor: pointer;
+    border: none;
+}
+
+.bbab-tf-button-primary {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+.bbab-tf-button-secondary {
+    background: var(--background-modifier-border);
+    color: var(--text-normal);
+}
+
+.bbab-tf-button:hover {
+    opacity: 0.9;
+}
+
+/* ============================================================================
+   Future: Preview Diff Styles (Phase 3)
+   ============================================================================ */
+
+.bbab-tf-preview {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.bbab-tf-preview-item {
+    padding: 0.75em;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.bbab-tf-preview-item:last-child {
+    border-bottom: none;
+}
+
+.bbab-tf-preview-path {
+    font-weight: 500;
+    margin-bottom: 0.25em;
+}
+
+.bbab-tf-preview-tags {
+    font-size: 0.9em;
+    color: var(--text-muted);
+}
+
+.bbab-tf-tag-add {
+    color: var(--text-success);
+}
+
+.bbab-tf-tag-remove {
+    color: var(--text-error);
+    text-decoration: line-through;
+}

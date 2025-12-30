@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build output (deployed to vault, not tracked here)
+main.js
+
+# npm
+npm-debug.log*
+package-lock.json
+
+# TypeScript
+*.tsbuildinfo
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.idea/
+*.sublime-*
+.vscode/
+
+# Obsidian
+data.json
