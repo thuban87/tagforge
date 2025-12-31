@@ -130,7 +130,15 @@ Phase 4 features were absorbed into Phase 3's enhanced preview modal:
 |-------|---------|--------|-------|
 | 31 | Responsive modal CSS | **Done** | All modals full-width on mobile, proper sizing |
 | 32 | Touch-friendly UI | **Done** | 44px min touch targets, better spacing |
-| 33 | Mobile testing | **Done** | Ready for Obsidian mobile testing |
+| 33 | Mobile testing | **Done** | Tested on Android, user approved |
+
+### Additional Phase 9 Features
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Command renaming | **Done** | REVERT→REMOVE, BULK→BULK ADD, clearer naming |
+| Ribbon icons | **Done** | History (Undo), Tags (Bulk Add to folder) |
+| Obsidian Sync | **Compatible** | Works with plugin settings sync enabled |
 
 **Phase 9 Goal:** Full functionality on mobile devices. ✓
 
