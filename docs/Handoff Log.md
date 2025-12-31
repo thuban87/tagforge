@@ -1,10 +1,114 @@
 # TagForge Handoff Log
 
 **Last Updated:** December 30, 2024
-**Current Phase:** Phase 9 COMPLETE - All Phases Done!
-**Current Branch:** main (ready for phase-9-mobile branch)
+**Current Phase:** v1.0.0 Release Candidate - Marketplace Ready
+**Current Branch:** main
 **GitHub:** Initialized and connected
-**Total Features Planned:** 33 (across 9 phases)
+**Version:** 1.0.0
+**Total Features Implemented:** 33 (across 9 phases) + marketplace prep
+
+---
+
+## Session: December 30, 2024 - Marketplace Prep & Code Review
+
+### Session Summary
+
+Comprehensive code review in preparation for Obsidian Community Marketplace submission. Addressed 7 issues identified by Gemini plus additional issues found via deep code review. Added global auto-tagging toggle setting. Removed incomplete inline tags feature. Created README.md and LICENSE files. Version bumped to 1.0.0.
+
+### What Was Accomplished
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Code review (Gemini issues) | COMPLETE | All 7 issues addressed |
+| Deep code review (agent) | COMPLETE | Additional issues found and fixed |
+| Console log cleanup | COMPLETE | Removed 13 console.log statements |
+| Invisible tag bug | FIXED | Validation in folderNameToTag |
+| Protected tags case sensitivity | FIXED | Case-insensitive comparison |
+| Bulk operation throttling | ADDED | Yields to main thread every 50 files |
+| File watcher debouncing | ADDED | Prevents duplicate operations |
+| Timeout cleanup | ADDED | Proper onunload() cleanup |
+| Inheritance depth in preview | FIXED | BulkPreviewModal respects inheritDepth |
+| Inline tags feature | REMOVED | Incomplete, deferred to future |
+| Global auto-tagging toggle | ADDED | New setting to disable auto-watch |
+| README.md | CREATED | Comprehensive marketplace documentation |
+| LICENSE | CREATED | MIT License |
+| manifest.json | UPDATED | authorUrl, version 1.0.0 |
+| package.json | UPDATED | version 1.0.0 |
+| esbuild.config.mjs | UPDATED | Environment variable support |
+| Folder preview feature | DOCUMENTED | Deferred, see Feature Proposal doc |
+
+### Issues Fixed (Gemini + Agent Review)
+
+| Issue | Fix Applied |
+|-------|------------|
+| Invisible tags (folders like "1" or ".hidden") | Added validation: `tag.length > 1 && /[a-z0-9]/.test(tag)` |
+| Protected tags case mismatch | Case-insensitive comparison using `.toLowerCase()` |
+| UI freeze on large bulk operations | Added throttling - yield every 50 files |
+| Magic number (100ms timeout) | Added explanatory comments |
+| Console spam | Removed 13 console.log statements |
+| Timezone display | Changed to UTC in DatePickerModal |
+| Type safety (`as any`) | Removed unsafe casts, proper type narrowing |
+| File watcher duplicates | Added debouncing with pendingFileOps Map |
+| Timeout memory leaks | Track timeouts in pendingTimeouts array, clear in onunload |
+| Preview checkboxes ignore depth | BulkPreviewModal now respects inheritDepth setting |
+
+### New Settings Added
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| autoTagEnabled | boolean | true | Enable/disable automatic tagging on file create |
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| README.md | Marketplace documentation |
+| LICENSE | MIT License |
+| docs/Feature Proposal - Folder Tag Preview.md | Deferred feature documentation |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| main.ts | Removed inline tags, added throttling, debouncing, cleanup, auto-tag toggle, fixed bugs |
+| manifest.json | Version 1.0.0, authorUrl |
+| package.json | Version 1.0.0 |
+| esbuild.config.mjs | OBSIDIAN_PLUGIN_PATH environment variable support |
+
+### Testing Results
+
+All issues verified fixed:
+- Invisible tags no longer created for numeric/hidden folders
+- Protected tags work case-insensitively (no duplicates)
+- Bulk operations don't freeze UI
+- File watchers properly debounced
+- Preview checkboxes respect inheritance depth
+- Auto-tagging toggle works (can disable auto-watch)
+
+### Deferred Feature: Folder Tag Preview
+
+User requested feature to preview what tags would apply to a folder before creating files. Documented in `docs/Feature Proposal - Folder Tag Preview.md` with:
+- Three implementation options (hover, command, settings panel)
+- Technical considerations
+- UI mockups
+- Acceptance criteria
+- Next session prompt
+
+### Issue to Investigate: Auto-Tag Toggle Behavior
+
+**Symptom:** User disabled auto-tagging toggle, created new file, file still received a tag - but not the parent folder tags. The tag applied was one previously added via bulk add preview's "Additional tags" field.
+
+**Possible causes:**
+1. **Folder alias exists** - Check if a folder alias was inadvertently created for the top-level folder. Folder aliases apply to all files in that subtree regardless of how they're created.
+2. **Stale tracking data** - The bulk operation may have created tracking entries that are being re-applied through an unexpected code path.
+3. **Another code path** - The toggle only checks `handleFileCreate()`. There may be another function applying tags.
+
+**To investigate:**
+1. Check Settings → Folder Aliases for any entries matching that folder
+2. Check if the tag appears in `getTagsForPath()` output for that folder
+3. Review all code paths that call `applyFrontmatterTags()` or modify file tags
+
+**User action:** Monitoring for now. May resolve itself or reproduce with more info.
 
 ---
 
@@ -407,59 +511,67 @@ Phases 1-6, 8, and 9 are all complete. The plugin is fully functional with mobil
 ## Next Session Prompt
 
 ```
-TagForge - All Core Phases Complete!
+TagForge - v1.0.0 Release Candidate (Marketplace Ready)
 
 **Directory:** C:\Users\bwales\projects\obsidian-plugins\tagforge\
 **Deploy to:** G:\My Drive\IT\Obsidian Vault\My Notebooks\.obsidian\plugins\tagforge\
-**Current branch:** main (user will create phase-9-mobile branch and merge)
+**Current branch:** main
+**Version:** 1.0.0
 
 **Docs:**
 - docs\Handoff Log.md - START HERE for full context
-- docs\ADR-001-Architecture.md
 - docs\Project Summary.md
+- docs\ADR-001-Architecture.md
 - docs\ADR Priority List - TagForge.md
+- docs\Feature Proposal - Folder Tag Preview.md - DEFERRED FEATURE
 
 **Plugin Status:**
-- Phases 1-6, 8, 9 COMPLETE (33 features implemented)
-- Phase 7 (Advanced Rules) deferred for future
-- Mobile tested and working on Android
-- Obsidian Sync compatible (enable plugin settings sync)
-- User handles all git commands
+- v1.0.0 - Marketplace ready
+- All 9 phases complete (33 features)
+- Code review complete (Gemini + deep review)
+- README.md and LICENSE created
+- Mobile tested and working
 
-**Current Commands (renamed in Phase 9):**
-- TAG: Manually tag current file
-- REMOVE: Remove all auto-applied tags
-- REMOVE: Remove ALL tags from vault (nuclear)
-- REMOVE: Remove auto-tags by date
-- REMOVE: Remove auto-tags from specific folder
-- BULK ADD: Apply tags to entire vault (with preview)
-- BULK ADD: Apply tags to specific folder (with preview)
-- UNDO: Undo a recent tag operation
-- REPORT: View tag report dashboard
-- VALIDATE: Check for tag issues
+**New Feature to Implement: Folder Tag Preview**
 
-**Ribbon Icons (added in Phase 9):**
-- History icon → Undo modal
-- Tags icon → Bulk Add to folder
+User requested a feature to preview what tags would apply to files in a folder
+BEFORE creating files. This helps verify configuration and understand inheritance.
 
-**Core Features Working:**
-- Auto-tag new files based on folder hierarchy
-- Bulk add/remove tags with preview modal
-- Folder aliases for custom tag mappings
-- Move handling with confirmation modal
-- Undo/history (last 50 operations)
-- Tag report dashboard (TagForge + manual tags)
-- Validation system (orphaned, missing, ignored path issues)
-- Mobile-optimized UI (responsive CSS, 44px touch targets)
+See: docs/Feature Proposal - Folder Tag Preview.md
 
-**Future Phase 7 (needs planning before implementation):**
-- Filename pattern rules (regex/glob)
-- Content-based rules (search patterns)
-- Template integration
+**Recommended Implementation Steps:**
+
+1. Start with command-based preview (simpler, works on mobile):
+   - New command: "PREVIEW: Show tags for folder"
+   - Reuse FolderPickerModal for folder selection
+   - Create TagPreviewModal showing:
+     - Tags that would apply
+     - Which folder each tag comes from (inheritance chain)
+     - Active aliases for that path
+     - Current inheritance depth setting
+
+2. Add styling for preview modal (styles.css)
+
+3. (Future) Research Obsidian file explorer hooks for hover preview:
+   - Check if file-menu event can show preview
+   - Investigate tooltip/hover APIs
+   - Consider long-press for mobile
+
+**Key existing code to reuse:**
+- getTagsForPath(filePath) - Core tag calculation
+- FolderPickerModal - Folder selection UI
+- folderAliases setting - Alias data to display
+
+**Current Settings:**
+- autoTagEnabled (new) - Global toggle for auto-watch
+- inheritDepth - Folder levels to inherit
+- ignorePaths - Folders to skip
+- protectedTags - Tags never touched
+- folderAliases - Custom folder→tag mappings
 
 **Build & Deploy:**
 1. npm run build (outputs to deploy directory)
-2. Copy styles.css to deploy directory manually
+2. Copy styles.css + manifest.json to deploy directory
 3. Reload Obsidian
 
 **Known Non-Critical Issue:**

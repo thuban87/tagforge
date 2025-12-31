@@ -1,6 +1,8 @@
 # TagForge - Project Summary
 
 **Purpose:** Provide full project context for Claude Code sessions.
+**Version:** 1.0.0 (Marketplace Ready)
+**Last Updated:** December 30, 2024
 
 **Note:** For current state and next steps, see `Handoff Log.md` first. This document covers the "what and why" - the Handoff Log covers the "where we are now."
 
@@ -78,7 +80,8 @@ When a file moves:
 
 - **Tag aliasing:** Multiple folders map to same tag
 - **Protected tags:** Tags the plugin should never touch
-- **Format choice:** Frontmatter (default) or inline tags
+- **Auto-tag toggle:** Global setting to enable/disable automatic tagging
+- **Format:** Frontmatter tags (YAML)
 - **Ignore patterns:** Skip certain folders (e.g., Templates, .obsidian)
 
 ---
@@ -104,9 +107,10 @@ When a file moves:
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Tag format | Flat tags | Better graph view filtering than nested tags |
-| Tag storage | Frontmatter | Standard, widely compatible |
+| Tag storage | Frontmatter only | Standard, widely compatible, simpler implementation |
 | Tag tracking | Internal plugin database | Invisible to user, keeps frontmatter clean |
 | Naming | `bbab-tf-` prefix for CSS | Avoid conflicts with other plugins |
+| License | MIT | Open source, permissive, standard for Obsidian plugins |
 
 ---
 
@@ -123,8 +127,13 @@ Build incrementally with testing at each phase:
 7. **Phase 7:** Advanced rules (content, filename, template) - FUTURE
 8. **Phase 8:** Polish (undo/history, reports, validation) ✓
 9. **Phase 9:** Mobile optimization, command renaming, ribbon icons ✓
+10. **Marketplace Prep:** Code review, bug fixes, documentation ✓
 
-**Current Status:** All core phases complete! Only Phase 7 (Advanced Rules) remains for future implementation.
+**Current Status:** v1.0.0 - Marketplace ready! All core phases complete. Code reviewed and polished. README.md and LICENSE created.
+
+**Deferred Features:**
+- Phase 7 (Advanced Rules) - filename patterns, content-based rules
+- Folder Tag Preview - see `docs/Feature Proposal - Folder Tag Preview.md`
 
 ---
 

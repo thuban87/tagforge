@@ -1,7 +1,8 @@
 # ADR-001: TagForge Core Architecture
 
-**Status:** Accepted
+**Status:** Accepted (Updated for v1.0.0)
 **Date:** December 30, 2024
+**Last Updated:** December 30, 2024
 
 ---
 
@@ -32,15 +33,15 @@ Building an Obsidian plugin for automatic tag management. The plugin needs to:
 
 ---
 
-### 2. Tag Storage: Frontmatter Default
+### 2. Tag Storage: Frontmatter Only
 
-**Decision:** Store tags in YAML frontmatter by default, with option for inline tags.
+**Decision:** Store tags in YAML frontmatter only. (Inline tags feature was removed in v1.0.0)
 
 **Rationale:**
 - Frontmatter is standard and widely compatible
 - Easier to programmatically read/write
 - Clean separation from note content
-- User preference varies, so make it configurable
+- Simpler implementation - removed incomplete inline tags feature for v1.0.0
 
 **Format:**
 ```yaml
@@ -147,21 +148,23 @@ tags:
 **Settings Structure:**
 ```typescript
 interface TagForgeSettings {
+  // Core Settings
+  autoTagEnabled: boolean;        // Enable/disable automatic tagging (v1.0.0)
   inheritDepth: number;           // How many folder levels to inherit
-  tagFormat: 'frontmatter' | 'inline';
   showMoveConfirmation: boolean;
+  rememberedMoveAction: 'continue' | 'leave' | null;
 
-  folderMappings: {
-    [folderPath: string]: string[];  // folder -> tags
-  };
-
+  // Folder Configuration
   folderAliases: {
-    [folderPath: string]: string;    // folder name -> tag name override
-  };
+    folder: string;               // folder path
+    tags: string[];               // tags to apply
+  }[];
 
+  // Exclusions
   ignorePaths: string[];          // Paths to skip
   protectedTags: string[];        // Never touch these tags
 
+  // Future (Phase 7)
   contentRules: {
     pattern: string;              // Regex or string
     tags: string[];
@@ -187,6 +190,36 @@ interface TagForgeSettings {
 
 ---
 
+### 9. Auto-Tagging Toggle (v1.0.0)
+
+**Decision:** Provide a global setting to enable/disable automatic tagging on file create.
+
+**Rationale:**
+- Users may want to temporarily disable auto-tagging without uninstalling
+- Useful when reorganizing vault structure
+- Allows manual-only workflows while keeping bulk operations available
+- Simple boolean toggle in settings UI
+
+**Default:** Enabled (true) - auto-tagging works out of the box
+
+---
+
+### 10. Performance Safeguards (v1.0.0)
+
+**Decision:** Implement throttling and debouncing for bulk operations and file watchers.
+
+**Rationale:**
+- Large vaults (1000+ files) could freeze UI during bulk operations
+- Rapid file operations could trigger duplicate processing
+- Timeouts must be tracked and cleaned up on plugin unload
+
+**Implementation:**
+- Bulk operations yield to main thread every 50 files
+- File watchers debounced with 100ms timeout
+- All timeouts tracked in `pendingTimeouts` array for cleanup
+
+---
+
 ## Consequences
 
 ### Positive
@@ -195,15 +228,24 @@ interface TagForgeSettings {
 - User's frontmatter stays clean (tracking is internal)
 - Works on desktop and mobile
 - Incremental development possible (each feature is independent)
+- Global toggle provides user control without uninstalling (v1.0.0)
+- Throttling prevents UI freezes on large vaults (v1.0.0)
+- Proper cleanup prevents memory leaks (v1.0.0)
 
 ### Negative
 - Internal tracking adds complexity
 - Must handle edge cases (file renamed externally, data.json corruption)
-- Content rules may have performance impact on large vaults
+- Content rules may have performance impact on large vaults (Phase 7 - future)
 
 ### Risks
 - Obsidian API changes could break event watching
-- Large vaults with content rules enabled may see slowdown
+- Large vaults with content rules enabled may see slowdown (mitigated by throttling)
+
+### Mitigations Added in v1.0.0
+- Tag validation prevents invisible/invalid tags
+- Case-insensitive comparison prevents duplicate tags
+- Debouncing prevents duplicate file operations
+- Timeout tracking enables proper cleanup on unload
 
 ---
 

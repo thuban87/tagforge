@@ -6,8 +6,8 @@ import { App, Plugin, PluginSettingTab, Setting, Notice, TFile, Modal, TFolder }
 
 interface TagForgeSettings {
 	// Core settings
+	autoTagEnabled: boolean;
 	inheritDepth: number;
-	tagFormat: 'frontmatter' | 'inline';
 	showMoveConfirmation: boolean;
 	rememberedMoveAction: 'continue' | 'leave' | null;
 
@@ -64,8 +64,8 @@ interface TagForgeData {
 // ============================================================================
 
 const DEFAULT_SETTINGS: TagForgeSettings = {
+	autoTagEnabled: true,
 	inheritDepth: 3,
-	tagFormat: 'frontmatter',
 	showMoveConfirmation: true,
 	rememberedMoveAction: null,
 	folderMappings: {},
@@ -91,10 +91,10 @@ export default class TagForgePlugin extends Plugin {
 	tagTracking: Record<string, TagTrackingEntry>;
 	operationHistory: TagOperation[];
 	pendingUndoPath: string | null = null; // Track when we're undoing a move to prevent modal loop
+	pendingTimeouts: number[] = []; // Track pending timeouts for cleanup
+	pendingFileOps: Map<string, number> = new Map(); // Track pending operations per file for debouncing
 
 	async onload() {
-		console.log('TagForge: Loading plugin');
-
 		// Load settings and tag tracking data
 		await this.loadSettings();
 
@@ -185,8 +185,22 @@ export default class TagForgePlugin extends Plugin {
 			this.registerEvent(
 				this.app.vault.on('create', (file) => {
 					if (file instanceof TFile) {
-						// Small delay to ensure file is ready
-						setTimeout(() => this.handleFileCreate(file), 100);
+						// Cancel any pending operation for this file (debouncing)
+						const existingTimeout = this.pendingFileOps.get(file.path);
+						if (existingTimeout) {
+							window.clearTimeout(existingTimeout);
+							this.pendingTimeouts = this.pendingTimeouts.filter(id => id !== existingTimeout);
+						}
+
+						// Wait 100ms to ensure Obsidian's metadata cache has registered
+						// the file before we modify its frontmatter (race condition mitigation)
+						const timeoutId = window.setTimeout(() => {
+							this.pendingTimeouts = this.pendingTimeouts.filter(id => id !== timeoutId);
+							this.pendingFileOps.delete(file.path);
+							this.handleFileCreate(file);
+						}, 100);
+						this.pendingTimeouts.push(timeoutId);
+						this.pendingFileOps.set(file.path, timeoutId);
 					}
 				})
 			);
@@ -195,20 +209,42 @@ export default class TagForgePlugin extends Plugin {
 			this.registerEvent(
 				this.app.vault.on('rename', (file, oldPath) => {
 					if (file instanceof TFile) {
-						// Small delay to ensure file is ready
-						setTimeout(() => this.handleFileRename(file, oldPath), 100);
+						// Cancel any pending operation for this file (debouncing)
+						const existingTimeout = this.pendingFileOps.get(file.path);
+						if (existingTimeout) {
+							window.clearTimeout(existingTimeout);
+							this.pendingTimeouts = this.pendingTimeouts.filter(id => id !== existingTimeout);
+						}
+						// Also cancel any pending op for the old path
+						const oldPathTimeout = this.pendingFileOps.get(oldPath);
+						if (oldPathTimeout) {
+							window.clearTimeout(oldPathTimeout);
+							this.pendingTimeouts = this.pendingTimeouts.filter(id => id !== oldPathTimeout);
+							this.pendingFileOps.delete(oldPath);
+						}
+
+						// Wait 100ms to ensure Obsidian's metadata cache has registered
+						// the rename before we modify its frontmatter (race condition mitigation)
+						const timeoutId = window.setTimeout(() => {
+							this.pendingTimeouts = this.pendingTimeouts.filter(id => id !== timeoutId);
+							this.pendingFileOps.delete(file.path);
+							this.handleFileRename(file, oldPath);
+						}, 100);
+						this.pendingTimeouts.push(timeoutId);
+						this.pendingFileOps.set(file.path, timeoutId);
 					}
 				})
 			);
-
-			console.log('TagForge: File watcher activated');
 		});
-
-		console.log('TagForge: Plugin loaded successfully');
 	}
 
 	onunload() {
-		console.log('TagForge: Unloading plugin');
+		// Clear any pending timeouts
+		for (const timeoutId of this.pendingTimeouts) {
+			window.clearTimeout(timeoutId);
+		}
+		this.pendingTimeouts = [];
+		this.pendingFileOps.clear();
 	}
 
 	// -------------------------------------------------------------------------
@@ -270,6 +306,11 @@ export default class TagForgePlugin extends Plugin {
 	}
 
 	async handleFileCreate(file: TFile) {
+		// Check if auto-tagging is enabled
+		if (!this.settings.autoTagEnabled) {
+			return;
+		}
+
 		// Only process markdown files
 		if (file.extension !== 'md') {
 			return;
@@ -296,8 +337,6 @@ export default class TagForgePlugin extends Plugin {
 			tagsBefore,
 			tagsAfter,
 		}]);
-
-		console.log(`TagForge: Auto-tagged ${file.name} with ${tags.map(t => '#' + t).join(', ')}`);
 	}
 
 	// -------------------------------------------------------------------------
@@ -312,7 +351,6 @@ export default class TagForgePlugin extends Plugin {
 
 		// Check if this is an undo move (Cancel was clicked) - skip to prevent loop
 		if (this.pendingUndoPath && file.path === this.pendingUndoPath) {
-			console.log('TagForge: Skipping undo move event');
 			this.pendingUndoPath = null;
 			return;
 		}
@@ -351,7 +389,6 @@ export default class TagForgePlugin extends Plugin {
 
 			if (needsSave) {
 				await this.saveSettings();
-				console.log(`TagForge: Updated tracking for renamed file: ${oldPath} -> ${file.path}`);
 			}
 			return;
 		}
@@ -359,12 +396,9 @@ export default class TagForgePlugin extends Plugin {
 		// Check if new path is in ignored folders
 		for (const ignorePath of this.settings.ignorePaths) {
 			if (file.path.startsWith(ignorePath + '/') || file.path.startsWith(ignorePath + '\\')) {
-				console.log(`TagForge: Moved file is in ignored path, skipping`);
 				return;
 			}
 		}
-
-		console.log(`TagForge: File moved from "${oldFolder}" to "${newFolder}"`);
 
 		// Decide what to do based on settings
 		if (!this.settings.showMoveConfirmation) {
@@ -454,7 +488,6 @@ export default class TagForgePlugin extends Plugin {
 		const newTags = this.getTagsForPath(file.path);
 		if (newTags.length > 0) {
 			await this.applyTagsToFile(file.path, newTags);
-			console.log(`TagForge: Retagged ${file.name} with ${newTags.map(t => '#' + t).join(', ')}`);
 			new Notice(`Retagged with: ${newTags.map(t => '#' + t).join(', ')}`);
 		} else {
 			await this.saveSettings();
@@ -471,8 +504,9 @@ export default class TagForgePlugin extends Plugin {
 	}
 
 	async removeAutoTagsFromFile(file: TFile, tagsToRemove: string[]) {
-		// Filter out protected tags - never remove those
-		const safeToRemove = tagsToRemove.filter(t => !this.settings.protectedTags.includes(t));
+		// Filter out protected tags - never remove those (case-insensitive comparison)
+		const protectedLower = this.settings.protectedTags.map(t => t.toLowerCase());
+		const safeToRemove = tagsToRemove.filter(t => !protectedLower.includes(t.toLowerCase()));
 
 		if (safeToRemove.length === 0) {
 			return;
@@ -514,7 +548,8 @@ export default class TagForgePlugin extends Plugin {
 		let errors = 0;
 		const operationFiles: OperationFileState[] = [];
 
-		for (const filePath of trackedFiles) {
+		for (let i = 0; i < trackedFiles.length; i++) {
+			const filePath = trackedFiles[i];
 			const tracking = this.tagTracking[filePath];
 			if (!tracking || tracking.autoTags.length === 0) {
 				continue;
@@ -552,6 +587,12 @@ export default class TagForgePlugin extends Plugin {
 				console.error(`TagForge: Failed to revert ${filePath}`, e);
 				errors++;
 			}
+
+			// Every 50 files, yield to UI and show progress
+			if (i > 0 && i % 50 === 0) {
+				new Notice(`Reverting: ${i}/${trackedFiles.length}...`);
+				await new Promise(resolve => setTimeout(resolve, 10));
+			}
 		}
 
 		// Record the revert operation
@@ -564,7 +605,6 @@ export default class TagForgePlugin extends Plugin {
 		await this.saveSettings();
 
 		new Notice(`Reverted ${reverted} files. ${errors > 0 ? `${errors} errors.` : ''}`);
-		console.log(`TagForge: Revert complete. ${reverted} files reverted, ${errors} errors.`);
 	}
 
 	async revertAllTagsNuclear() {
@@ -589,7 +629,8 @@ export default class TagForgePlugin extends Plugin {
 		let errors = 0;
 		const operationFiles: OperationFileState[] = [];
 
-		for (const file of files) {
+		for (let i = 0; i < files.length; i++) {
+			const file = files[i];
 			try {
 				// Capture state before
 				const tagsBefore = await this.getFileTags(file);
@@ -614,6 +655,12 @@ export default class TagForgePlugin extends Plugin {
 				console.error(`TagForge: Failed to clear tags from ${file.path}`, e);
 				errors++;
 			}
+
+			// Every 50 files, yield to UI and show progress
+			if (i > 0 && i % 50 === 0) {
+				new Notice(`Clearing: ${i}/${files.length}...`);
+				await new Promise(resolve => setTimeout(resolve, 10));
+			}
 		}
 
 		// Record the nuclear operation
@@ -626,16 +673,16 @@ export default class TagForgePlugin extends Plugin {
 		await this.saveSettings();
 
 		new Notice(`Cleared tags from ${cleared} files. ${errors > 0 ? `${errors} errors.` : ''}`);
-		console.log(`TagForge: Nuclear revert complete. ${cleared} files cleared, ${errors} errors.`);
 	}
 
 	async revertAutoTagsByDate() {
-		// Get unique dates from tracking
+		// Get unique dates from tracking (using UTC for consistency across timezones)
 		const dateMap: Record<string, string[]> = {};
 
 		for (const [filePath, tracking] of Object.entries(this.tagTracking)) {
 			if (!tracking.lastUpdated) continue;
-			const date = tracking.lastUpdated.split('T')[0]; // YYYY-MM-DD
+			// Extract UTC date from ISO string (YYYY-MM-DD)
+			const date = tracking.lastUpdated.split('T')[0];
 			if (!dateMap[date]) {
 				dateMap[date] = [];
 			}
@@ -670,7 +717,8 @@ export default class TagForgePlugin extends Plugin {
 		let errors = 0;
 		const operationFiles: OperationFileState[] = [];
 
-		for (const filePath of filesToRevert) {
+		for (let i = 0; i < filesToRevert.length; i++) {
+			const filePath = filesToRevert[i];
 			const tracking = this.tagTracking[filePath];
 			if (!tracking || tracking.autoTags.length === 0) {
 				continue;
@@ -707,6 +755,12 @@ export default class TagForgePlugin extends Plugin {
 			} catch (e) {
 				console.error(`TagForge: Failed to revert ${filePath}`, e);
 				errors++;
+			}
+
+			// Every 50 files, yield to UI and show progress
+			if (i > 0 && i % 50 === 0) {
+				new Notice(`Reverting: ${i}/${filesToRevert.length}...`);
+				await new Promise(resolve => setTimeout(resolve, 10));
 			}
 		}
 
@@ -766,7 +820,8 @@ export default class TagForgePlugin extends Plugin {
 			let errors = 0;
 			const operationFiles: OperationFileState[] = [];
 
-			for (const filePath of filesToRevert) {
+			for (let i = 0; i < filesToRevert.length; i++) {
+				const filePath = filesToRevert[i];
 				const tracking = this.tagTracking[filePath];
 				if (!tracking || tracking.autoTags.length === 0) continue;
 
@@ -799,6 +854,12 @@ export default class TagForgePlugin extends Plugin {
 					console.error(`TagForge: Failed to revert ${filePath}`, e);
 					errors++;
 				}
+
+				// Every 50 files, yield to UI and show progress
+				if (i > 0 && i % 50 === 0) {
+					new Notice(`Reverting: ${i}/${filesToRevert.length}...`);
+					await new Promise(resolve => setTimeout(resolve, 10));
+				}
 			}
 
 			if (operationFiles.length > 0) {
@@ -823,7 +884,7 @@ export default class TagForgePlugin extends Plugin {
 			return;
 		}
 
-		new BulkPreviewModal(this.app, items, 'entire vault', async (results) => {
+		new BulkPreviewModal(this.app, items, 'entire vault', this.settings.inheritDepth, async (results) => {
 			await this.executeBulkApply(results);
 		}).open();
 	}
@@ -888,7 +949,7 @@ export default class TagForgePlugin extends Plugin {
 			}
 
 			const description = includeSubdirs ? `${selectedFolder} (+ subdirs)` : selectedFolder;
-			new BulkPreviewModal(this.app, items, description, async (results) => {
+			new BulkPreviewModal(this.app, items, description, this.settings.inheritDepth, async (results) => {
 				await this.executeBulkApply(results);
 			}).open();
 		}).open();
@@ -948,11 +1009,15 @@ export default class TagForgePlugin extends Plugin {
 					if (Array.isArray(aliasValue)) {
 						tagsByLevel.push(aliasValue);
 					} else {
-						// Legacy: single string
-						tagsByLevel.push([aliasValue as unknown as string]);
+						// Legacy: single string value
+						tagsByLevel.push([String(aliasValue)]);
 					}
 				} else {
-					tagsByLevel.push([this.folderNameToTag(folderName)]);
+					const tag = this.folderNameToTag(folderName);
+					// Only push valid tags (at least 2 chars and contains alphanumeric)
+					if (tag.length > 1 && /[a-z0-9]/.test(tag)) {
+						tagsByLevel.push([tag]);
+					}
 				}
 			}
 		}
@@ -965,7 +1030,8 @@ export default class TagForgePlugin extends Plugin {
 		let errors = 0;
 		const operationFiles: OperationFileState[] = [];
 
-		for (const item of results) {
+		for (let i = 0; i < results.length; i++) {
+			const item = results[i];
 			try {
 				// Capture state before
 				const tagsBefore = await this.getFileTags(item.file);
@@ -986,6 +1052,12 @@ export default class TagForgePlugin extends Plugin {
 				console.error(`TagForge: Failed to tag ${item.file.path}`, e);
 				errors++;
 			}
+
+			// Every 50 files, yield to UI and show progress
+			if (i > 0 && i % 50 === 0) {
+				new Notice(`Processing: ${i}/${results.length}...`);
+				await new Promise(resolve => setTimeout(resolve, 10));
+			}
 		}
 
 		// Record the bulk operation
@@ -994,7 +1066,6 @@ export default class TagForgePlugin extends Plugin {
 		}
 
 		new Notice(`Tagged ${applied} files. ${errors > 0 ? `${errors} errors.` : ''}`);
-		console.log(`TagForge: Bulk apply complete. ${applied} files tagged, ${errors} errors.`);
 	}
 
 	getTagsForPath(filePath: string): string[] {
@@ -1025,12 +1096,16 @@ export default class TagForgePlugin extends Plugin {
 					if (Array.isArray(aliasValue)) {
 						tags.push(...aliasValue);
 					} else {
-						tags.push(aliasValue as unknown as string);
+						// Legacy: single string value
+						tags.push(String(aliasValue));
 					}
 				} else {
 					// Convert folder name to tag format
 					const tag = this.folderNameToTag(folderName);
-					tags.push(tag);
+					// Only push valid tags (at least 2 chars and contains alphanumeric)
+					if (tag.length > 1 && /[a-z0-9]/.test(tag)) {
+						tags.push(tag);
+					}
 				}
 			}
 		}
@@ -1059,14 +1134,11 @@ export default class TagForgePlugin extends Plugin {
 			return;
 		}
 
-		// Filter out protected tags
-		const tagsToApply = tags.filter(t => !this.settings.protectedTags.includes(t));
+		// Filter out protected tags (case-insensitive comparison)
+		const protectedLower = this.settings.protectedTags.map(t => t.toLowerCase());
+		const tagsToApply = tags.filter(t => !protectedLower.includes(t.toLowerCase()));
 
-		if (this.settings.tagFormat === 'frontmatter') {
-			await this.applyFrontmatterTags(filePath, tagsToApply);
-		} else {
-			await this.applyInlineTags(filePath, tagsToApply);
-		}
+		await this.applyFrontmatterTags(filePath, tagsToApply);
 
 		// Track the tags we applied
 		this.tagTracking[filePath] = {
@@ -1080,7 +1152,7 @@ export default class TagForgePlugin extends Plugin {
 		const file = this.app.vault.getAbstractFileByPath(filePath);
 		if (!file || !(file instanceof TFile)) return;
 
-		await this.app.fileManager.processFrontMatter(file as any, (frontmatter) => {
+		await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
 			// Get existing tags
 			let existingTags: string[] = [];
 			if (frontmatter.tags) {
@@ -1102,28 +1174,6 @@ export default class TagForgePlugin extends Plugin {
 			const allTags = [...existingTags, ...tagsToAdd];
 			frontmatter.tags = allTags;
 		});
-	}
-
-	async applyInlineTags(filePath: string, tags: string[]) {
-		const file = this.app.vault.getAbstractFileByPath(filePath);
-		if (!file || !(file instanceof TFile)) return;
-
-		const content = await this.app.vault.read(file as any);
-		const tagString = tags.map(t => '#' + t).join(' ');
-
-		// Add tags at the end of the file if not already present
-		const lines = content.split('\n');
-		const lastLine = lines[lines.length - 1];
-
-		// Check if tags are already there
-		const existingTags = tags.filter(t => content.includes('#' + t));
-		const newTags = tags.filter(t => !existingTags.includes(t));
-
-		if (newTags.length > 0) {
-			const newTagString = newTags.map(t => '#' + t).join(' ');
-			const newContent = content + '\n\n' + newTagString;
-			await this.app.vault.modify(file as any, newContent);
-		}
 	}
 
 	// -------------------------------------------------------------------------
@@ -1363,6 +1413,7 @@ class BulkPreviewModal extends Modal {
 	items: EnhancedPreviewItem[];
 	targetDescription: string;
 	onConfirm: (results: Array<{ file: TFile; tags: string[] }>) => void;
+	inheritDepth: number;
 
 	// State
 	selectedFiles: Set<string> = new Set();
@@ -1381,20 +1432,24 @@ class BulkPreviewModal extends Modal {
 		app: App,
 		items: EnhancedPreviewItem[],
 		targetDescription: string,
+		inheritDepth: number,
 		onConfirm: (results: Array<{ file: TFile; tags: string[] }>) => void
 	) {
 		super(app);
 		this.items = items;
 		this.targetDescription = targetDescription;
+		this.inheritDepth = inheritDepth;
 		this.onConfirm = onConfirm;
 
-		// Initialize: all files selected, all levels enabled
+		// Initialize: all files selected, levels enabled up to inheritDepth
 		for (const item of items) {
 			this.selectedFiles.add(item.file.path);
 			const levels = item.folderTagsByLevel.length;
 			if (levels > this.maxLevel) this.maxLevel = levels;
 		}
-		for (let i = 1; i <= this.maxLevel; i++) {
+		// Only enable levels up to the inheritance depth setting
+		const levelsToEnable = Math.min(this.maxLevel, this.inheritDepth);
+		for (let i = 1; i <= levelsToEnable; i++) {
 			this.enabledLevels.add(i);
 		}
 	}
@@ -1778,7 +1833,7 @@ class DatePickerModal extends Modal {
 
 		contentEl.createEl('h2', { text: 'Select dates to revert' });
 		contentEl.createEl('p', {
-			text: 'Choose which dates to remove auto-applied tags from:',
+			text: 'Choose which dates to remove auto-applied tags from (dates shown in UTC):',
 			cls: 'bbab-tf-description',
 		});
 
@@ -1983,6 +2038,16 @@ class TagForgeSettingTab extends PluginSettingTab {
 		containerEl.createEl('h2', { text: 'Core Settings' });
 
 		new Setting(containerEl)
+			.setName('Enable auto-tagging')
+			.setDesc('Automatically tag new files based on their folder location')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.autoTagEnabled)
+				.onChange(async (value) => {
+					this.plugin.settings.autoTagEnabled = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
 			.setName('Inheritance depth')
 			.setDesc('How many folder levels to inherit tags from (e.g., 3 = top 3 folders)')
 			.addText(text => text
@@ -1994,18 +2059,6 @@ class TagForgeSettingTab extends PluginSettingTab {
 						this.plugin.settings.inheritDepth = num;
 						await this.plugin.saveSettings();
 					}
-				}));
-
-		new Setting(containerEl)
-			.setName('Tag format')
-			.setDesc('Where to store tags in your notes')
-			.addDropdown(dropdown => dropdown
-				.addOption('frontmatter', 'Frontmatter (YAML)')
-				.addOption('inline', 'Inline (end of file)')
-				.setValue(this.plugin.settings.tagFormat)
-				.onChange(async (value: 'frontmatter' | 'inline') => {
-					this.plugin.settings.tagFormat = value;
-					await this.plugin.saveSettings();
 				}));
 
 		// Determine current move behavior for dropdown
@@ -2085,7 +2138,7 @@ class TagForgeSettingTab extends PluginSettingTab {
 				.onChange(async (value) => {
 					this.plugin.settings.protectedTags = value
 						.split('\n')
-						.map(t => t.trim().replace(/^#/, ''))
+						.map(t => t.trim().replace(/^#/, '').toLowerCase())
 						.filter(t => t.length > 0);
 					await this.plugin.saveSettings();
 				}));
