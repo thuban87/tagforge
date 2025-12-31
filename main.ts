@@ -33,9 +33,30 @@ interface TagTrackingEntry {
 	lastUpdated: string;
 }
 
+// ============================================================================
+// Operation History (Phase 8 - Undo/History)
+// ============================================================================
+
+interface OperationFileState {
+	path: string;
+	tagsBefore: string[];
+	tagsAfter: string[];
+}
+
+interface TagOperation {
+	id: string;
+	type: 'apply' | 'remove' | 'bulk' | 'move' | 'revert';
+	description: string;
+	timestamp: string;
+	files: OperationFileState[];
+}
+
+const MAX_HISTORY_SIZE = 50;
+
 interface TagForgeData {
 	settings: TagForgeSettings;
 	tagTracking: Record<string, TagTrackingEntry>;
+	operationHistory: TagOperation[];
 }
 
 // ============================================================================
@@ -58,6 +79,7 @@ const DEFAULT_SETTINGS: TagForgeSettings = {
 const DEFAULT_DATA: TagForgeData = {
 	settings: DEFAULT_SETTINGS,
 	tagTracking: {},
+	operationHistory: [],
 };
 
 // ============================================================================
@@ -67,6 +89,7 @@ const DEFAULT_DATA: TagForgeData = {
 export default class TagForgePlugin extends Plugin {
 	settings: TagForgeSettings;
 	tagTracking: Record<string, TagTrackingEntry>;
+	operationHistory: TagOperation[];
 	pendingUndoPath: string | null = null; // Track when we're undoing a move to prevent modal loop
 
 	async onload() {
@@ -106,6 +129,13 @@ export default class TagForgePlugin extends Plugin {
 			callback: () => this.revertAutoTagsByDate(),
 		});
 
+		// Folder-specific revert
+		this.addCommand({
+			id: 'revert-auto-tags-by-folder',
+			name: 'REVERT: Remove auto-tags from specific folder',
+			callback: () => this.revertAutoTagsByFolder(),
+		});
+
 		// Phase 3: Bulk operations
 		this.addCommand({
 			id: 'bulk-apply-tags',
@@ -117,6 +147,27 @@ export default class TagForgePlugin extends Plugin {
 			id: 'bulk-apply-folder',
 			name: 'BULK: Apply tags to specific folder (with preview)',
 			callback: () => this.bulkApplyToFolder(),
+		});
+
+		// Phase 8: Undo/History
+		this.addCommand({
+			id: 'undo-operation',
+			name: 'UNDO: Undo a recent tag operation',
+			callback: () => this.showUndoHistory(),
+		});
+
+		// Phase 8: Tag Report Dashboard
+		this.addCommand({
+			id: 'tag-report',
+			name: 'REPORT: View tag report dashboard',
+			callback: () => this.showTagReport(),
+		});
+
+		// Phase 8: Validation
+		this.addCommand({
+			id: 'validate-tags',
+			name: 'VALIDATE: Check for tag issues',
+			callback: () => this.validateTags(),
 		});
 
 		// Phase 2: Watch for new files (only after vault is fully loaded)
@@ -160,12 +211,14 @@ export default class TagForgePlugin extends Plugin {
 		const loadedData: TagForgeData = Object.assign({}, DEFAULT_DATA, data);
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedData.settings);
 		this.tagTracking = loadedData.tagTracking || {};
+		this.operationHistory = loadedData.operationHistory || [];
 	}
 
 	async saveSettings() {
 		const data: TagForgeData = {
 			settings: this.settings,
 			tagTracking: this.tagTracking,
+			operationHistory: this.operationHistory,
 		};
 		await this.saveData(data);
 	}
@@ -188,8 +241,22 @@ export default class TagForgePlugin extends Plugin {
 			return;
 		}
 
+		// Capture state before
+		const tagsBefore = await this.getFileTags(activeFile);
+
 		// Apply tags to the file
 		await this.applyTagsToFile(activeFile.path, tags);
+
+		// Capture state after
+		const tagsAfter = await this.getFileTags(activeFile);
+
+		// Record the operation
+		await this.recordOperation('apply', `Tagged ${activeFile.name}`, [{
+			path: activeFile.path,
+			tagsBefore,
+			tagsAfter,
+		}]);
+
 		new Notice(`Applied tags: ${tags.map(t => '#' + t).join(', ')}`);
 	}
 
@@ -205,8 +272,22 @@ export default class TagForgePlugin extends Plugin {
 			return;
 		}
 
+		// Capture state before (new files have no tags)
+		const tagsBefore: string[] = [];
+
 		// Apply tags to the file
 		await this.applyTagsToFile(file.path, tags);
+
+		// Capture state after
+		const tagsAfter = await this.getFileTags(file);
+
+		// Record the operation
+		await this.recordOperation('apply', `Auto-tagged ${file.name}`, [{
+			path: file.path,
+			tagsBefore,
+			tagsAfter,
+		}]);
+
 		console.log(`TagForge: Auto-tagged ${file.name} with ${tags.map(t => '#' + t).join(', ')}`);
 	}
 
@@ -232,11 +313,36 @@ export default class TagForgePlugin extends Plugin {
 		const newFolder = this.getParentFolder(file.path);
 
 		if (oldFolder === newFolder) {
-			// Just a rename, not a move - update tracking key if needed
+			// Just a rename, not a move - update tracking and history
+			let needsSave = false;
+			const oldFileName = oldPath.split('/').pop() || oldPath;
+			const newFileName = file.name;
+
+			// Update tagTracking key
 			if (this.tagTracking[oldPath]) {
 				this.tagTracking[file.path] = this.tagTracking[oldPath];
 				delete this.tagTracking[oldPath];
+				needsSave = true;
+			}
+
+			// Update operationHistory entries (both paths and descriptions)
+			for (const op of this.operationHistory) {
+				for (const fileState of op.files) {
+					if (fileState.path === oldPath) {
+						fileState.path = file.path;
+						needsSave = true;
+					}
+				}
+				// Update description if it mentions the old filename
+				if (op.description.includes(oldFileName)) {
+					op.description = op.description.replace(oldFileName, newFileName);
+					needsSave = true;
+				}
+			}
+
+			if (needsSave) {
 				await this.saveSettings();
+				console.log(`TagForge: Updated tracking for renamed file: ${oldPath} -> ${file.path}`);
 			}
 			return;
 		}
@@ -325,6 +431,9 @@ export default class TagForgePlugin extends Plugin {
 	}
 
 	async applyMoveRetag(file: TFile, oldPath: string) {
+		// Capture state before
+		const tagsBefore = await this.getFileTags(file);
+
 		// Step 1: Remove old auto-tags (if any were tracked)
 		const oldTracking = this.tagTracking[oldPath];
 		if (oldTracking && oldTracking.autoTags.length > 0) {
@@ -342,6 +451,14 @@ export default class TagForgePlugin extends Plugin {
 			await this.saveSettings();
 			new Notice('Auto-tags removed (new location has no tags)');
 		}
+
+		// Capture state after and record operation
+		const tagsAfter = await this.getFileTags(file);
+		await this.recordOperation('move', `Retagged ${file.name} after move`, [{
+			path: file.path,
+			tagsBefore,
+			tagsAfter,
+		}]);
 	}
 
 	async removeAutoTagsFromFile(file: TFile, tagsToRemove: string[]) {
@@ -386,6 +503,7 @@ export default class TagForgePlugin extends Plugin {
 
 		let reverted = 0;
 		let errors = 0;
+		const operationFiles: OperationFileState[] = [];
 
 		for (const filePath of trackedFiles) {
 			const tracking = this.tagTracking[filePath];
@@ -400,6 +518,9 @@ export default class TagForgePlugin extends Plugin {
 			}
 
 			try {
+				// Capture state before
+				const tagsBefore = await this.getFileTags(file);
+
 				await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
 					if (frontmatter.tags && Array.isArray(frontmatter.tags)) {
 						// Remove only the auto-applied tags
@@ -412,11 +533,21 @@ export default class TagForgePlugin extends Plugin {
 						}
 					}
 				});
+
+				// Capture state after
+				const tagsAfter = await this.getFileTags(file);
+				operationFiles.push({ path: filePath, tagsBefore, tagsAfter });
+
 				reverted++;
 			} catch (e) {
 				console.error(`TagForge: Failed to revert ${filePath}`, e);
 				errors++;
 			}
+		}
+
+		// Record the revert operation
+		if (operationFiles.length > 0) {
+			await this.recordOperation('revert', `Reverted auto-tags from ${reverted} files`, operationFiles);
 		}
 
 		// Clear tracking data
@@ -447,19 +578,38 @@ export default class TagForgePlugin extends Plugin {
 
 		let cleared = 0;
 		let errors = 0;
+		const operationFiles: OperationFileState[] = [];
 
 		for (const file of files) {
 			try {
+				// Capture state before
+				const tagsBefore = await this.getFileTags(file);
+
 				await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
 					if (frontmatter.tags) {
 						delete frontmatter.tags;
 					}
 				});
+
+				// Only record if file had tags
+				if (tagsBefore.length > 0) {
+					operationFiles.push({
+						path: file.path,
+						tagsBefore,
+						tagsAfter: [],
+					});
+				}
+
 				cleared++;
 			} catch (e) {
 				console.error(`TagForge: Failed to clear tags from ${file.path}`, e);
 				errors++;
 			}
+		}
+
+		// Record the nuclear operation
+		if (operationFiles.length > 0) {
+			await this.recordOperation('revert', `Nuclear: Cleared ALL tags from ${operationFiles.length} files`, operationFiles);
 		}
 
 		// Clear tracking data too
@@ -509,6 +659,7 @@ export default class TagForgePlugin extends Plugin {
 
 		let reverted = 0;
 		let errors = 0;
+		const operationFiles: OperationFileState[] = [];
 
 		for (const filePath of filesToRevert) {
 			const tracking = this.tagTracking[filePath];
@@ -523,6 +674,9 @@ export default class TagForgePlugin extends Plugin {
 			}
 
 			try {
+				// Capture state before
+				const tagsBefore = await this.getFileTags(file);
+
 				await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
 					if (frontmatter.tags && Array.isArray(frontmatter.tags)) {
 						frontmatter.tags = frontmatter.tags.filter(
@@ -533,6 +687,11 @@ export default class TagForgePlugin extends Plugin {
 						}
 					}
 				});
+
+				// Capture state after
+				const tagsAfter = await this.getFileTags(file);
+				operationFiles.push({ path: filePath, tagsBefore, tagsAfter });
+
 				// Remove from tracking
 				delete this.tagTracking[filePath];
 				reverted++;
@@ -542,8 +701,104 @@ export default class TagForgePlugin extends Plugin {
 			}
 		}
 
+		// Record the revert operation
+		if (operationFiles.length > 0) {
+			await this.recordOperation('revert', `Reverted auto-tags from ${reverted} files (by date)`, operationFiles);
+		}
+
 		await this.saveSettings();
 		new Notice(`Reverted ${reverted} files from ${selectedDates.length} date(s). ${errors > 0 ? `${errors} errors.` : ''}`);
+	}
+
+	async revertAutoTagsByFolder() {
+		// Get all folders that have tracked files
+		const foldersWithTracking = new Set<string>();
+		for (const filePath of Object.keys(this.tagTracking)) {
+			const folder = this.getParentFolder(filePath);
+			if (folder) {
+				foldersWithTracking.add(folder);
+				// Also add parent folders
+				const parts = folder.split('/');
+				for (let i = 1; i < parts.length; i++) {
+					foldersWithTracking.add(parts.slice(0, i).join('/'));
+				}
+			}
+		}
+
+		if (foldersWithTracking.size === 0) {
+			new Notice('No folders with tracked auto-tags');
+			return;
+		}
+
+		const folders = Array.from(foldersWithTracking).sort();
+
+		new FolderPickerModal(this.app, folders, async (selectedFolder, includeSubdirs) => {
+			// Find tracked files in this folder
+			const filesToRevert = Object.keys(this.tagTracking).filter(filePath => {
+				if (includeSubdirs) {
+					return filePath.startsWith(selectedFolder + '/');
+				} else {
+					const fileFolder = this.getParentFolder(filePath);
+					return fileFolder === selectedFolder;
+				}
+			});
+
+			if (filesToRevert.length === 0) {
+				new Notice(`No tracked files in ${selectedFolder}`);
+				return;
+			}
+
+			const confirmed = confirm(
+				`Remove auto-tags from ${filesToRevert.length} file(s) in "${selectedFolder}"${includeSubdirs ? ' (including subdirectories)' : ''}?`
+			);
+			if (!confirmed) return;
+
+			let reverted = 0;
+			let errors = 0;
+			const operationFiles: OperationFileState[] = [];
+
+			for (const filePath of filesToRevert) {
+				const tracking = this.tagTracking[filePath];
+				if (!tracking || tracking.autoTags.length === 0) continue;
+
+				const file = this.app.vault.getAbstractFileByPath(filePath);
+				if (!file || !(file instanceof TFile)) {
+					errors++;
+					continue;
+				}
+
+				try {
+					const tagsBefore = await this.getFileTags(file);
+
+					await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+						if (frontmatter.tags && Array.isArray(frontmatter.tags)) {
+							frontmatter.tags = frontmatter.tags.filter(
+								(tag: string) => !tracking.autoTags.includes(tag)
+							);
+							if (frontmatter.tags.length === 0) {
+								delete frontmatter.tags;
+							}
+						}
+					});
+
+					const tagsAfter = await this.getFileTags(file);
+					operationFiles.push({ path: filePath, tagsBefore, tagsAfter });
+
+					delete this.tagTracking[filePath];
+					reverted++;
+				} catch (e) {
+					console.error(`TagForge: Failed to revert ${filePath}`, e);
+					errors++;
+				}
+			}
+
+			if (operationFiles.length > 0) {
+				await this.recordOperation('revert', `Reverted auto-tags from ${reverted} files in ${selectedFolder}`, operationFiles);
+			}
+
+			await this.saveSettings();
+			new Notice(`Reverted ${reverted} files in ${selectedFolder}. ${errors > 0 ? `${errors} errors.` : ''}`);
+		}).open();
 	}
 
 	// -------------------------------------------------------------------------
@@ -582,6 +837,18 @@ export default class TagForgePlugin extends Plugin {
 		folders.sort();
 
 		new FolderPickerModal(this.app, folders, async (selectedFolder, includeSubdirs) => {
+			// Check if folder is in ignored paths
+			const isIgnored = this.settings.ignorePaths.some(ignorePath =>
+				selectedFolder === ignorePath ||
+				selectedFolder.startsWith(ignorePath + '/') ||
+				selectedFolder.startsWith(ignorePath + '\\')
+			);
+
+			if (isIgnored) {
+				new Notice(`"${selectedFolder}" is in your ignored paths list. Remove it from settings to tag files here.`);
+				return;
+			}
+
 			let files: TFile[];
 
 			if (includeSubdirs) {
@@ -687,15 +954,34 @@ export default class TagForgePlugin extends Plugin {
 	async executeBulkApply(results: Array<{ file: TFile; tags: string[] }>) {
 		let applied = 0;
 		let errors = 0;
+		const operationFiles: OperationFileState[] = [];
 
 		for (const item of results) {
 			try {
+				// Capture state before
+				const tagsBefore = await this.getFileTags(item.file);
+
 				await this.applyTagsToFile(item.file.path, item.tags);
+
+				// Capture state after
+				const tagsAfter = await this.getFileTags(item.file);
+
+				operationFiles.push({
+					path: item.file.path,
+					tagsBefore,
+					tagsAfter,
+				});
+
 				applied++;
 			} catch (e) {
 				console.error(`TagForge: Failed to tag ${item.file.path}`, e);
 				errors++;
 			}
+		}
+
+		// Record the bulk operation
+		if (operationFiles.length > 0) {
+			await this.recordOperation('bulk', `Bulk applied tags to ${applied} files`, operationFiles);
 		}
 
 		new Notice(`Tagged ${applied} files. ${errors > 0 ? `${errors} errors.` : ''}`);
@@ -796,8 +1082,15 @@ export default class TagForgePlugin extends Plugin {
 				}
 			}
 
-			// Merge with new tags (avoiding duplicates)
-			const allTags = [...new Set([...existingTags, ...tags])];
+			// Normalize all tags (lowercase, no # prefix)
+			const normalizedExisting = existingTags.map(t => t.toLowerCase().replace(/^#/, ''));
+			const normalizedNew = tags.map(t => t.toLowerCase().replace(/^#/, ''));
+
+			// Only add tags that don't already exist (case-insensitive)
+			const tagsToAdd = normalizedNew.filter(t => !normalizedExisting.includes(t));
+
+			// Keep existing tags as-is, add new normalized tags
+			const allTags = [...existingTags, ...tagsToAdd];
 			frontmatter.tags = allTags;
 		});
 	}
@@ -823,6 +1116,228 @@ export default class TagForgePlugin extends Plugin {
 			await this.app.vault.modify(file as any, newContent);
 		}
 	}
+
+	// -------------------------------------------------------------------------
+	// Phase 8: Operation History & Undo
+	// -------------------------------------------------------------------------
+
+	generateOperationId(): string {
+		return Date.now().toString(36) + Math.random().toString(36).substr(2);
+	}
+
+	async getFileTags(file: TFile): Promise<string[]> {
+		const cache = this.app.metadataCache.getFileCache(file);
+		const tags: string[] = [];
+		if (cache?.frontmatter?.tags) {
+			if (Array.isArray(cache.frontmatter.tags)) {
+				tags.push(...cache.frontmatter.tags);
+			} else if (typeof cache.frontmatter.tags === 'string') {
+				tags.push(cache.frontmatter.tags);
+			}
+		}
+		return tags;
+	}
+
+	async recordOperation(
+		type: TagOperation['type'],
+		description: string,
+		files: OperationFileState[]
+	) {
+		const operation: TagOperation = {
+			id: this.generateOperationId(),
+			type,
+			description,
+			timestamp: new Date().toISOString(),
+			files,
+		};
+
+		// Add to beginning of history
+		this.operationHistory.unshift(operation);
+
+		// Trim to max size
+		if (this.operationHistory.length > MAX_HISTORY_SIZE) {
+			this.operationHistory = this.operationHistory.slice(0, MAX_HISTORY_SIZE);
+		}
+
+		await this.saveSettings();
+	}
+
+	showUndoHistory() {
+		if (this.operationHistory.length === 0) {
+			new Notice('No operations to undo');
+			return;
+		}
+
+		new UndoHistoryModal(this.app, this.operationHistory, async (operation) => {
+			await this.undoOperation(operation);
+		}).open();
+	}
+
+	async undoOperation(operation: TagOperation) {
+		let undone = 0;
+		let errors = 0;
+
+		for (const fileState of operation.files) {
+			const file = this.app.vault.getAbstractFileByPath(fileState.path);
+			if (!file || !(file instanceof TFile)) {
+				errors++;
+				continue;
+			}
+
+			try {
+				await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+					// Restore to the state before the operation
+					if (fileState.tagsBefore.length > 0) {
+						frontmatter.tags = [...fileState.tagsBefore];
+					} else {
+						delete frontmatter.tags;
+					}
+				});
+
+				// Update tracking if we're reverting to having no auto-tags
+				const trackedAutoTags = this.tagTracking[fileState.path]?.autoTags || [];
+				const restoredHasAutoTags = trackedAutoTags.some(t => fileState.tagsBefore.includes(t));
+				if (!restoredHasAutoTags) {
+					delete this.tagTracking[fileState.path];
+				}
+
+				undone++;
+			} catch (e) {
+				console.error(`TagForge: Failed to undo for ${fileState.path}`, e);
+				errors++;
+			}
+		}
+
+		// Remove the operation from history
+		this.operationHistory = this.operationHistory.filter(op => op.id !== operation.id);
+		await this.saveSettings();
+
+		new Notice(`Undone "${operation.description}": ${undone} files restored. ${errors > 0 ? `${errors} errors.` : ''}`);
+	}
+
+	// -------------------------------------------------------------------------
+	// Phase 8: Tag Report Dashboard
+	// -------------------------------------------------------------------------
+
+	showTagReport() {
+		new TagReportModal(this.app, this).open();
+	}
+
+	// -------------------------------------------------------------------------
+	// Phase 8: Validation
+	// -------------------------------------------------------------------------
+
+	async validateTags() {
+		const issues: ValidationIssue[] = [];
+
+		// First, identify files in ignored paths (these take priority)
+		const ignoredPathFiles = new Set<string>();
+		for (const filePath of Object.keys(this.tagTracking)) {
+			for (const ignorePath of this.settings.ignorePaths) {
+				if (filePath.startsWith(ignorePath + '/') || filePath.startsWith(ignorePath + '\\')) {
+					ignoredPathFiles.add(filePath);
+					issues.push({
+						type: 'ignored-path-tracked',
+						filePath,
+						description: `File in ignored path "${ignorePath}" but still has tracking data. Fix will remove tracking.`,
+					});
+					break;
+				}
+			}
+		}
+
+		// Check for orphaned tracking (tracked files that don't exist)
+		for (const filePath of Object.keys(this.tagTracking)) {
+			if (ignoredPathFiles.has(filePath)) continue; // Skip if already flagged
+
+			const file = this.app.vault.getAbstractFileByPath(filePath);
+			if (!file) {
+				issues.push({
+					type: 'orphaned-tracking',
+					filePath,
+					description: 'File no longer exists but is still tracked',
+				});
+			}
+		}
+
+		// Check for missing tags (tracked tags not in file's frontmatter)
+		// Skip files in ignored paths - those have a different issue type
+		for (const [filePath, tracking] of Object.entries(this.tagTracking)) {
+			if (ignoredPathFiles.has(filePath)) continue; // Skip if in ignored path
+
+			const file = this.app.vault.getAbstractFileByPath(filePath);
+			if (!file || !(file instanceof TFile)) continue;
+
+			const currentTags = await this.getFileTags(file);
+			// Case-insensitive comparison for missing tags
+			const currentTagsLower = currentTags.map(t => t.toLowerCase());
+			const missingTags = tracking.autoTags.filter(t => !currentTagsLower.includes(t.toLowerCase()));
+
+			if (missingTags.length > 0) {
+				issues.push({
+					type: 'missing-tags',
+					filePath,
+					description: `Tracked tags missing from file: ${missingTags.map(t => '#' + t).join(', ')}`,
+					tags: missingTags,
+				});
+			}
+		}
+
+		if (issues.length === 0) {
+			new Notice('No issues found!');
+			return;
+		}
+
+		new ValidationResultsModal(this.app, issues, this).open();
+	}
+
+	async fixValidationIssue(issue: ValidationIssue) {
+		switch (issue.type) {
+			case 'orphaned-tracking':
+				delete this.tagTracking[issue.filePath];
+				await this.saveSettings();
+				new Notice(`Removed tracking for: ${issue.filePath}`);
+				break;
+
+			case 'ignored-path-tracked':
+				delete this.tagTracking[issue.filePath];
+				await this.saveSettings();
+				new Notice(`Removed tracking for: ${issue.filePath}`);
+				break;
+
+			case 'missing-tags':
+				// Re-apply the missing tags
+				if (issue.tags) {
+					const file = this.app.vault.getAbstractFileByPath(issue.filePath);
+					if (file && file instanceof TFile) {
+						await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+							let existingTags: string[] = [];
+							if (frontmatter.tags) {
+								if (Array.isArray(frontmatter.tags)) {
+									existingTags = frontmatter.tags;
+								} else if (typeof frontmatter.tags === 'string') {
+									existingTags = [frontmatter.tags];
+								}
+							}
+							frontmatter.tags = [...new Set([...existingTags, ...issue.tags!])];
+						});
+						new Notice(`Re-applied missing tags to: ${issue.filePath}`);
+					}
+				}
+				break;
+		}
+	}
+}
+
+// ============================================================================
+// Validation Issue Interface (Phase 8)
+// ============================================================================
+
+interface ValidationIssue {
+	type: 'orphaned-tracking' | 'missing-tags' | 'ignored-path-tracked';
+	filePath: string;
+	description: string;
+	tags?: string[];
 }
 
 // ============================================================================
@@ -1672,5 +2187,440 @@ class TagForgeSettingTab extends PluginSettingTab {
 		infoDiv.createEl('p', {
 			text: 'Use the command palette (Ctrl+P) and search for "TagForge" to manually tag files.',
 		});
+	}
+}
+
+// ============================================================================
+// Undo History Modal (Phase 8)
+// ============================================================================
+
+const UNDO_FILE_DISPLAY_LIMIT = 40;
+
+class UndoHistoryModal extends Modal {
+	operations: TagOperation[];
+	onUndo: (operation: TagOperation) => void;
+
+	constructor(
+		app: App,
+		operations: TagOperation[],
+		onUndo: (operation: TagOperation) => void
+	) {
+		super(app);
+		this.operations = operations;
+		this.onUndo = onUndo;
+	}
+
+	onOpen() {
+		const { contentEl } = this;
+		contentEl.empty();
+		contentEl.addClass('bbab-tf-undo-history-modal');
+
+		contentEl.createEl('h2', { text: 'Undo History' });
+		contentEl.createEl('p', {
+			text: `${this.operations.length} operation(s) available to undo`,
+			cls: 'bbab-tf-description',
+		});
+
+		const listEl = contentEl.createDiv({ cls: 'bbab-tf-undo-list' });
+
+		for (const op of this.operations) {
+			const itemEl = listEl.createDiv({ cls: 'bbab-tf-undo-item' });
+
+			// Header row with expand toggle
+			const headerEl = itemEl.createDiv({ cls: 'bbab-tf-undo-header' });
+
+			const infoEl = headerEl.createDiv({ cls: 'bbab-tf-undo-info' });
+
+			// Expand toggle
+			const expandBtn = infoEl.createEl('button', {
+				text: '▶',
+				cls: 'bbab-tf-undo-expand-toggle',
+			});
+
+			// Operation type badge
+			const typeBadge = infoEl.createSpan({ cls: `bbab-tf-undo-type bbab-tf-type-${op.type}` });
+			typeBadge.textContent = op.type.toUpperCase();
+
+			// Description
+			infoEl.createSpan({ text: op.description, cls: 'bbab-tf-undo-description' });
+
+			// Undo button in header
+			const undoBtn = headerEl.createEl('button', {
+				text: 'Undo',
+				cls: 'bbab-tf-undo-btn',
+			});
+			undoBtn.addEventListener('click', () => {
+				this.close();
+				this.onUndo(op);
+			});
+
+			// Details row
+			const detailsEl = itemEl.createDiv({ cls: 'bbab-tf-undo-details' });
+			const date = new Date(op.timestamp);
+			detailsEl.createSpan({
+				text: `${date.toLocaleDateString()} ${date.toLocaleTimeString()} • ${op.files.length} file(s)`,
+				cls: 'bbab-tf-undo-meta',
+			});
+
+			// Expandable file list (hidden by default)
+			const filesEl = itemEl.createDiv({ cls: 'bbab-tf-undo-files hidden' });
+
+			// Get unique folders for bulk operations, or file names for single ops
+			if (op.files.length > 10) {
+				// For large operations, group by folder
+				const folders = new Map<string, number>();
+				for (const f of op.files) {
+					const folder = f.path.split('/').slice(0, -1).join('/') || '(root)';
+					folders.set(folder, (folders.get(folder) || 0) + 1);
+				}
+				const sortedFolders = Array.from(folders.entries()).sort((a, b) => b[1] - a[1]);
+				const displayFolders = sortedFolders.slice(0, UNDO_FILE_DISPLAY_LIMIT);
+
+				for (const [folder, count] of displayFolders) {
+					filesEl.createDiv({
+						text: `${folder}/ (${count} file${count > 1 ? 's' : ''})`,
+						cls: 'bbab-tf-undo-file',
+					});
+				}
+
+				if (sortedFolders.length > UNDO_FILE_DISPLAY_LIMIT) {
+					filesEl.createDiv({
+						text: `... and ${sortedFolders.length - UNDO_FILE_DISPLAY_LIMIT} more folders`,
+						cls: 'bbab-tf-undo-file bbab-tf-undo-more',
+					});
+				}
+			} else {
+				// For small operations, show individual files
+				for (const f of op.files.slice(0, UNDO_FILE_DISPLAY_LIMIT)) {
+					const fileName = f.path.split('/').pop() || f.path;
+					filesEl.createDiv({
+						text: fileName,
+						cls: 'bbab-tf-undo-file',
+					});
+				}
+
+				if (op.files.length > UNDO_FILE_DISPLAY_LIMIT) {
+					filesEl.createDiv({
+						text: `... and ${op.files.length - UNDO_FILE_DISPLAY_LIMIT} more files`,
+						cls: 'bbab-tf-undo-file bbab-tf-undo-more',
+					});
+				}
+			}
+
+			// Toggle expand
+			expandBtn.addEventListener('click', () => {
+				filesEl.classList.toggle('hidden');
+				expandBtn.textContent = filesEl.classList.contains('hidden') ? '▶' : '▼';
+			});
+		}
+
+		// Cancel button
+		const buttonContainer = contentEl.createDiv({ cls: 'bbab-tf-button-container' });
+		const cancelBtn = buttonContainer.createEl('button', { text: 'Cancel' });
+		cancelBtn.addEventListener('click', () => {
+			this.close();
+		});
+	}
+
+	onClose() {
+		const { contentEl } = this;
+		contentEl.empty();
+	}
+}
+
+// ============================================================================
+// Tag Report Modal (Phase 8)
+// ============================================================================
+
+class TagReportModal extends Modal {
+	plugin: TagForgePlugin;
+
+	constructor(app: App, plugin: TagForgePlugin) {
+		super(app);
+		this.plugin = plugin;
+	}
+
+	onOpen() {
+		const { contentEl } = this;
+		contentEl.empty();
+		contentEl.addClass('bbab-tf-report-modal');
+
+		contentEl.createEl('h2', { text: 'Tag Report Dashboard' });
+
+		// Gather data
+		const tagForgeStats = this.getTagForgeStats();
+		const allVaultTags = this.getAllVaultTags();
+
+		// Filter out TagForge tags from vault tags
+		const manualTags = allVaultTags.filter(t => !tagForgeStats.tags.has(t));
+
+		// Summary section
+		const summaryEl = contentEl.createDiv({ cls: 'bbab-tf-report-summary' });
+		summaryEl.createEl('div', {
+			text: `Tracked files: ${Object.keys(this.plugin.tagTracking).length}`,
+			cls: 'bbab-tf-report-stat',
+		});
+		summaryEl.createEl('div', {
+			text: `TagForge tags: ${tagForgeStats.tags.size}`,
+			cls: 'bbab-tf-report-stat',
+		});
+		summaryEl.createEl('div', {
+			text: `Manual tags: ${manualTags.length}`,
+			cls: 'bbab-tf-report-stat',
+		});
+
+		// TagForge Tags Section
+		const tfSection = contentEl.createDiv({ cls: 'bbab-tf-report-section' });
+		tfSection.createEl('h3', { text: 'TagForge Tags' });
+
+		const REPORT_FILE_LIMIT = 50;
+
+		if (tagForgeStats.tags.size === 0) {
+			tfSection.createEl('p', {
+				text: 'No tags applied by TagForge yet.',
+				cls: 'bbab-tf-no-data',
+			});
+		} else {
+			const tfListEl = tfSection.createDiv({ cls: 'bbab-tf-report-tag-list' });
+
+			// Sort by count descending
+			const sortedTags = Array.from(tagForgeStats.tagCounts.entries())
+				.sort((a, b) => b[1] - a[1]);
+
+			for (const [tag, count] of sortedTags) {
+				const tagEl = tfListEl.createDiv({ cls: 'bbab-tf-report-tag-item' });
+				tagEl.createSpan({ text: `#${tag}`, cls: 'bbab-tf-report-tag-name' });
+				tagEl.createSpan({ text: `${count} file(s)`, cls: 'bbab-tf-report-tag-count' });
+
+				// Expandable file list
+				const filesBtn = tagEl.createEl('button', {
+					text: 'Show files',
+					cls: 'bbab-tf-report-expand-btn',
+				});
+
+				const filesEl = tagEl.createDiv({ cls: 'bbab-tf-report-files hidden' });
+				const files = tagForgeStats.tagFiles.get(tag) || [];
+				const displayFiles = files.slice(0, REPORT_FILE_LIMIT);
+				const hasMore = files.length > REPORT_FILE_LIMIT;
+
+				for (const f of displayFiles) {
+					filesEl.createEl('div', { text: f, cls: 'bbab-tf-report-file' });
+				}
+
+				if (hasMore) {
+					const moreEl = filesEl.createDiv({ cls: 'bbab-tf-report-more' });
+					let shownCount = REPORT_FILE_LIMIT;
+
+					const updateMoreText = () => {
+						const remaining = files.length - shownCount;
+						moreTextSpan.textContent = `... and ${remaining} more files`;
+						showMoreBtn.textContent = remaining > REPORT_FILE_LIMIT ? `Show ${REPORT_FILE_LIMIT} more` : `Show ${remaining} more`;
+					};
+
+					const moreTextSpan = moreEl.createSpan({
+						text: `... and ${files.length - REPORT_FILE_LIMIT} more files`,
+						cls: 'bbab-tf-report-more-text',
+					});
+					const showMoreBtn = moreEl.createEl('button', {
+						text: files.length - REPORT_FILE_LIMIT > REPORT_FILE_LIMIT ? `Show ${REPORT_FILE_LIMIT} more` : `Show ${files.length - REPORT_FILE_LIMIT} more`,
+						cls: 'bbab-tf-report-show-all-btn',
+					});
+					showMoreBtn.addEventListener('click', () => {
+						// Add next batch of files
+						const nextBatch = files.slice(shownCount, shownCount + REPORT_FILE_LIMIT);
+						for (const f of nextBatch) {
+							const newFileEl = filesEl.createEl('div', { text: f, cls: 'bbab-tf-report-file' });
+							filesEl.insertBefore(newFileEl, moreEl);
+						}
+						shownCount += nextBatch.length;
+
+						// Remove the "more" element if we've shown all files
+						if (shownCount >= files.length) {
+							moreEl.remove();
+						} else {
+							updateMoreText();
+						}
+					});
+				}
+
+				filesBtn.addEventListener('click', () => {
+					filesEl.classList.toggle('hidden');
+					filesBtn.textContent = filesEl.classList.contains('hidden') ? 'Show files' : 'Hide files';
+				});
+			}
+		}
+
+		// Manual Tags Section
+		const manualSection = contentEl.createDiv({ cls: 'bbab-tf-report-section' });
+		manualSection.createEl('h3', { text: 'Manual Tags (not tracked by TagForge)' });
+
+		if (manualTags.length === 0) {
+			manualSection.createEl('p', {
+				text: 'No manual tags found.',
+				cls: 'bbab-tf-no-data',
+			});
+		} else {
+			const manualListEl = manualSection.createDiv({ cls: 'bbab-tf-report-manual-tags' });
+			for (const tag of manualTags.sort()) {
+				manualListEl.createSpan({ text: `#${tag}`, cls: 'bbab-tf-report-manual-tag' });
+			}
+		}
+
+		// Close button
+		const buttonContainer = contentEl.createDiv({ cls: 'bbab-tf-button-container' });
+		const closeBtn = buttonContainer.createEl('button', { text: 'Close', cls: 'mod-cta' });
+		closeBtn.addEventListener('click', () => {
+			this.close();
+		});
+	}
+
+	getTagForgeStats(): {
+		tags: Set<string>;
+		tagCounts: Map<string, number>;
+		tagFiles: Map<string, string[]>;
+	} {
+		const tags = new Set<string>();
+		const tagCounts = new Map<string, number>();
+		const tagFiles = new Map<string, string[]>();
+
+		for (const [filePath, tracking] of Object.entries(this.plugin.tagTracking)) {
+			for (const tag of tracking.autoTags) {
+				tags.add(tag);
+				tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+
+				if (!tagFiles.has(tag)) {
+					tagFiles.set(tag, []);
+				}
+				tagFiles.get(tag)!.push(filePath);
+			}
+		}
+
+		return { tags, tagCounts, tagFiles };
+	}
+
+	getAllVaultTags(): string[] {
+		const tags = new Set<string>();
+		const files = this.app.vault.getMarkdownFiles();
+
+		for (const file of files) {
+			const cache = this.app.metadataCache.getFileCache(file);
+			if (cache?.frontmatter?.tags) {
+				if (Array.isArray(cache.frontmatter.tags)) {
+					cache.frontmatter.tags.forEach((t: string) => tags.add(t));
+				} else if (typeof cache.frontmatter.tags === 'string') {
+					tags.add(cache.frontmatter.tags);
+				}
+			}
+		}
+
+		return Array.from(tags);
+	}
+
+	onClose() {
+		const { contentEl } = this;
+		contentEl.empty();
+	}
+}
+
+// ============================================================================
+// Validation Results Modal (Phase 8)
+// ============================================================================
+
+class ValidationResultsModal extends Modal {
+	issues: ValidationIssue[];
+	plugin: TagForgePlugin;
+
+	constructor(app: App, issues: ValidationIssue[], plugin: TagForgePlugin) {
+		super(app);
+		this.issues = issues;
+		this.plugin = plugin;
+	}
+
+	onOpen() {
+		const { contentEl } = this;
+		contentEl.empty();
+		contentEl.addClass('bbab-tf-validation-modal');
+
+		contentEl.createEl('h2', { text: 'Validation Results' });
+		contentEl.createEl('p', {
+			text: `Found ${this.issues.length} issue(s)`,
+			cls: 'bbab-tf-description',
+		});
+
+		const listEl = contentEl.createDiv({ cls: 'bbab-tf-validation-list' });
+
+		for (const issue of this.issues) {
+			const itemEl = listEl.createDiv({ cls: 'bbab-tf-validation-item' });
+
+			// Issue type badge
+			const typeBadge = itemEl.createSpan({ cls: `bbab-tf-issue-type bbab-tf-issue-${issue.type}` });
+			typeBadge.textContent = this.getIssueTypeLabel(issue.type);
+
+			// File path
+			itemEl.createSpan({ text: issue.filePath, cls: 'bbab-tf-validation-path' });
+
+			// Description
+			itemEl.createDiv({ text: issue.description, cls: 'bbab-tf-validation-desc' });
+
+			// Fix button
+			const fixBtn = itemEl.createEl('button', {
+				text: this.getFixButtonLabel(issue.type),
+				cls: 'bbab-tf-fix-btn',
+			});
+			fixBtn.addEventListener('click', async () => {
+				await this.plugin.fixValidationIssue(issue);
+				// Remove this issue from the list
+				this.issues = this.issues.filter(i => i !== issue);
+				if (this.issues.length === 0) {
+					this.close();
+					new Notice('All issues fixed!');
+				} else {
+					this.onOpen(); // Re-render
+				}
+			});
+		}
+
+		// Buttons
+		const buttonContainer = contentEl.createDiv({ cls: 'bbab-tf-button-container' });
+
+		const fixAllBtn = buttonContainer.createEl('button', {
+			text: 'Fix All',
+			cls: 'mod-warning',
+		});
+		fixAllBtn.addEventListener('click', async () => {
+			for (const issue of this.issues) {
+				await this.plugin.fixValidationIssue(issue);
+			}
+			this.close();
+			new Notice('All issues fixed!');
+		});
+
+		const closeBtn = buttonContainer.createEl('button', { text: 'Close' });
+		closeBtn.addEventListener('click', () => {
+			this.close();
+		});
+	}
+
+	getIssueTypeLabel(type: ValidationIssue['type']): string {
+		switch (type) {
+			case 'orphaned-tracking': return 'Orphaned';
+			case 'missing-tags': return 'Missing';
+			case 'ignored-path-tracked': return 'Ignored';
+			default: return 'Unknown';
+		}
+	}
+
+	getFixButtonLabel(type: ValidationIssue['type']): string {
+		switch (type) {
+			case 'orphaned-tracking': return 'Remove tracking';
+			case 'missing-tags': return 'Re-apply tags';
+			case 'ignored-path-tracked': return 'Remove tracking';
+			default: return 'Fix';
+		}
+	}
+
+	onClose() {
+		const { contentEl } = this;
+		contentEl.empty();
 	}
 }

@@ -1,14 +1,137 @@
 # TagForge Handoff Log
 
 **Last Updated:** December 30, 2024
-**Current Phase:** Phase 6 COMPLETE - Ready for Phase 7
-**Current Branch:** main (user to create phase-6-move-handling branch)
+**Current Phase:** Phase 8 COMPLETE - Ready for Phase 9
+**Current Branch:** phase-8-polish
 **GitHub:** Initialized and connected
 **Total Features Planned:** 33 (across 9 phases)
 
 ---
 
-## Session: December 30, 2024 - Phase 6 Complete
+## Session: December 30, 2024 - Phase 8 Complete
+
+### Session Summary
+
+Implemented full Phase 8: Polish & UX features. Added operation history tracking (last 50 operations), undo functionality with history picker modal, tag report dashboard (TagForge tags + manual tags sections), and validation warnings system. Multiple bug fixes including: nuclear revert now records in history, duplicate tags prevention, validation logic improvements, and critical fix for renamed files (Untitled notes now tracked correctly after rename).
+
+### What Was Accomplished
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| 8 | COMPLETE | Undo/history, tag report dashboard, validation warnings |
+
+---
+
+## Phase 8: Polish & UX - COMPLETE
+
+### Features Implemented
+
+**Operation History System:**
+- Stores last 50 operations in `operationHistory`
+- Each operation tracks: id, type, description, timestamp, files (with before/after tags)
+- Operation types: `apply`, `bulk`, `move`, `revert`, `remove`
+- All tag operations now record history (manual tag, auto-tag, bulk apply, move retag, reverts)
+
+**Undo History Modal:**
+- Command: `UNDO: Undo a recent tag operation`
+- Shows all operations with type badges (color-coded)
+- Expandable file lists (click ▶ to expand)
+- For large operations (>10 files), groups by folder
+- For small operations, shows individual file names
+- Limited to 40 entries with "...and X more" message
+- Undo restores files to previous tag state
+
+**Tag Report Dashboard:**
+- Command: `REPORT: View tag report dashboard`
+- Summary stats: tracked files count, TagForge tags count, manual tags count
+- **TagForge Tags section:** Lists all auto-applied tags sorted by file count
+  - Expandable file lists with 50-file pagination ("Show 50 more" button)
+- **Manual Tags section:** Simple list of non-TagForge tags in vault
+
+**Validation Warnings:**
+- Command: `VALIDATE: Check for tag issues`
+- Detects three issue types:
+  - **Orphaned tracking:** File deleted but still tracked
+  - **Missing tags:** Tracked tags not in file's frontmatter (case-insensitive)
+  - **Ignored path tracked:** File in ignored folder still has tracking
+- Individual "Fix" buttons for each issue
+- "Fix All" button for batch fixing
+- No duplicate issues (ignored path files only show one issue type)
+
+**Folder-Specific Revert:**
+- Command: `REVERT: Remove auto-tags from specific folder`
+- Uses FolderPickerModal (only shows folders with tracked files)
+- Include subdirectories toggle
+- Confirmation prompt before reverting
+
+### Bug Fixes
+
+| Bug | Fix |
+|-----|-----|
+| Nuclear revert not in undo history | Now records operation before clearing tracking |
+| Duplicate tags on re-apply | Case-insensitive comparison in `applyFrontmatterTags` |
+| Conflicting validation issues | Ignored path files only show one issue type |
+| Undo fails for renamed files | Operation history paths update when files renamed |
+| "Show all" freezes on large lists | Changed to "Show 50 more" pagination |
+| Ignored folder bulk apply confusing | Now shows clear message about ignored paths |
+
+### Critical Fix: Renamed Files (Untitled Notes)
+
+**Problem:** When new file created as "Untitled.md" and tagged, then renamed, undo failed because operation history had old path.
+
+**Solution:** Extended `handleFileRename` to update:
+1. `tagTracking` key (already existed)
+2. `operationHistory` file paths (new)
+3. Operation descriptions containing old filename (new)
+
+Now when "Untitled.md" is renamed to "My Note.md", all tracking updates automatically.
+
+### New Commands
+
+| Command | Description |
+|---------|-------------|
+| `UNDO: Undo a recent tag operation` | Open history picker to undo any operation |
+| `REPORT: View tag report dashboard` | See all tags applied by TagForge |
+| `VALIDATE: Check for tag issues` | Find and fix tracking inconsistencies |
+| `REVERT: Remove auto-tags from specific folder` | Revert tags in a chosen folder |
+
+### New Data Structures
+
+```typescript
+interface OperationFileState {
+  path: string;
+  tagsBefore: string[];
+  tagsAfter: string[];
+}
+
+interface TagOperation {
+  id: string;
+  type: 'apply' | 'remove' | 'bulk' | 'move' | 'revert';
+  description: string;
+  timestamp: string;
+  files: OperationFileState[];
+}
+
+// Added to TagForgeData
+operationHistory: TagOperation[];  // Max 50 entries
+```
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `main.ts` | Operation history system, undo methods, 4 new commands, 3 new modals, rename handler updates, validation logic, folder revert, duplicate tag fix |
+| `styles.css` | Undo modal styles, report dashboard styles, validation modal styles, expandable file lists |
+
+### Known Issues (Non-Critical)
+
+| Issue | Status |
+|-------|--------|
+| Text field occasionally unresponsive | Rare, resolves on its own. Console open seems to fix. |
+
+---
+
+## Previous Session: December 30, 2024 - Phase 6 Complete
 
 ### Session Summary
 
@@ -61,186 +184,11 @@ Implemented file move handling with confirmation modal. When files are moved bet
 | showMoveConfirmation | boolean | true | Controls whether modal appears |
 | rememberedMoveAction | 'continue' \| 'leave' \| null | null | Stored remembered choice |
 
-### Files Modified
-
-| File | Changes |
-|------|---------|
-| `main.ts` | Added `rememberedMoveAction` setting, `pendingUndoPath` property, `MoveConfirmationModal`, `handleFileRename`, `handleMoveResult`, `applyMoveRetag`, `removeAutoTagsFromFile`, `getParentFolder`, dropdown settings UI |
-| `styles.css` | Added move modal styles, options list styles |
-
 ---
 
-## Previous Session: December 30, 2024 - Phases 1-5 Complete
+## Phases 1-5: Foundation through Hierarchical Inheritance - COMPLETE
 
-### Session Summary
-
-Massive progress session. Fixed Phase 1 bug, implemented Phase 2 auto-watch (with safety fixes after mass-tagging incident), added comprehensive revert commands, built full Phase 3 bulk operations with enhanced preview modal, and completed Phase 5 hierarchical inheritance features. Phase 4 was absorbed into Phase 3's enhanced preview modal.
-
-### What Was Accomplished
-
-| Phase | Status | Notes |
-|-------|--------|-------|
-| 1 | COMPLETE | Bug fixed, esbuild deploys directly |
-| 2 | COMPLETE | Auto-watch with onLayoutReady guard |
-| 2.5 | COMPLETE | Enhanced revert commands (bonus) |
-| 3 | COMPLETE | Bulk ops + enhanced preview modal |
-| 4 | ABSORBED | Merged into Phase 3 preview modal |
-| 5 | COMPLETE | Folder aliases UI + multi-tag support |
-
----
-
-## Phase 1: Foundation - COMPLETE
-
-### Bug Fix
-- **Problem:** `file.constructor.name !== 'TFile'` fails in minified production builds
-- **Solution:** Changed to `!(file instanceof TFile)` in 3 locations
-- **Files modified:** `main.ts` lines 185, 208, 229
-
-### Build Configuration
-- Updated `esbuild.config.mjs` to output directly to deploy directory:
-  ```javascript
-  outfile: "G:/My Drive/IT/Obsidian Vault/My Notebooks/.obsidian/plugins/tagforge/main.js"
-  ```
-
-### Settings UI Change
-- Changed `inheritDepth` from slider to number input (no max limit)
-
----
-
-## Phase 2: Auto-Watch - COMPLETE
-
-### File Create Watcher
-- Added `vault.on('create')` event listener
-- Only processes `.md` files
-- Respects ignored paths setting
-
-### Critical Safety Fix
-**INCIDENT:** Plugin mass-tagged entire vault on enable because Obsidian fires `create` events during initial vault indexing.
-
-**SOLUTION:** Wrapped watcher registration in `onLayoutReady()`:
-```typescript
-this.app.workspace.onLayoutReady(() => {
-    this.registerEvent(
-        this.app.vault.on('create', (file) => { ... })
-    );
-});
-```
-
-### New Method
-- `handleFileCreate(file: TFile)` - Processes new files, logs to console
-
----
-
-## Phase 2.5: Enhanced Revert Commands - COMPLETE
-
-Added three revert commands for safety and recovery:
-
-### 1. Revert All Auto-Tags
-- Command: `REVERT: Remove all auto-applied tags`
-- Removes only tags tracked in `tagTracking`
-- Preserves manually-added tags
-- Clears tracking data after revert
-
-### 2. Nuclear Revert
-- Command: `REVERT: Remove ALL tags from vault (nuclear option)`
-- Double-confirmation required
-- Removes ALL tags from ALL markdown files
-- Use case: Starting completely fresh
-
-### 3. Date-Filtered Revert
-- Command: `REVERT: Remove auto-tags by date`
-- Opens `DatePickerModal` showing dates with file counts
-- Checkboxes for each date
-- Select All / Select None buttons
-- Only reverts files from selected dates
-
----
-
-## Phase 3: Bulk & Selective Push - COMPLETE
-
-### Commands Added
-1. `BULK: Apply tags to entire vault (with preview)`
-2. `BULK: Apply tags to specific folder (with preview)`
-
-### Enhanced Preview Modal (BulkPreviewModal)
-
-Complete rewrite with advanced features:
-
-**Folder Tags Section:**
-- Level toggles: Checkbox for each folder depth level
-- "Skip all folder tags" option
-- Dynamically shows only levels present in selected files
-
-**Additional Tags Section:**
-- Text input for comma-separated tags
-- Auto-formats tags (lowercase, hyphens)
-- Radio buttons: Apply to "All files" or "Selected only"
-
-**Files Section:**
-- Stats: "Files (X total, Y selected, Z with changes)"
-- Select All / Select None buttons
-- Scrollable list with checkboxes per file
-- Shows current tags, tags to add (color-coded)
-- "(no changes)" indicator for files already tagged
-- **Scroll position preserved** when toggling checkboxes
-
-**Apply Button:**
-- Dynamic text: "Apply to X files"
-- Disabled when no changes to apply
-
-### Folder Picker Modal (FolderPickerModal)
-- Searchable folder list
-- **Include subdirectories** checkbox (checked by default)
-- When unchecked, only processes direct children
-
-### Technical Details
-- `generateEnhancedPreview()` - Creates preview items with tags by level
-- `getFolderTagsByLevel()` - Returns tags at each folder depth
-- `executeBulkApply()` - Applies tags from computed results
-- Backward compatible with old alias format
-
----
-
-## Phase 4: One-Time Batch Tagger - ABSORBED
-
-Phase 4 features were absorbed into Phase 3's enhanced preview modal:
-- File selection checkboxes = batch selection
-- Additional tags input = arbitrary tag application
-- "Selected only" option = targeted tagging
-
-No separate Phase 4 implementation needed.
-
----
-
-## Phase 5: Hierarchical Inheritance - COMPLETE
-
-### Folder Aliases UI
-Added to Settings tab with:
-- List of existing aliases with remove buttons
-- Add form: folder path input + tags input
-- Displays as: `Personal/Projects → #my-projects, #work`
-
-### Multi-Tag Aliases
-- Changed `folderAliases` type from `Record<string, string>` to `Record<string, string[]>`
-- Comma-separated input: `dating, relationships, love-life`
-- Backward compatible with old single-string format
-- Updated `getTagsForPath()` and `getFolderTagsByLevel()` to handle arrays
-
-### Include Subdirectories Option
-- Checkbox in folder picker modal
-- Checked by default (include subdirs)
-- When unchecked, only direct children of selected folder
-
----
-
-## Files Modified This Session
-
-| File | Changes |
-|------|---------|
-| `main.ts` | Bug fixes, auto-watch, revert commands, bulk ops, modals, aliases UI |
-| `styles.css` | Modal styles, date picker, bulk preview, folder picker, aliases |
-| `esbuild.config.mjs` | Deploy path updated |
-| `.gitignore` | Created for git repo |
+*See previous session logs for full details on Phases 1-5.*
 
 ---
 
@@ -252,8 +200,12 @@ Added to Settings tab with:
 | REVERT: Remove all auto-applied tags | Undo tracked auto-tags |
 | REVERT: Remove ALL tags from vault (nuclear) | Clear all tags everywhere |
 | REVERT: Remove auto-tags by date | Date picker for selective revert |
+| REVERT: Remove auto-tags from specific folder | Folder picker for selective revert |
 | BULK: Apply tags to entire vault (with preview) | Full vault tagging |
 | BULK: Apply tags to specific folder (with preview) | Folder-based tagging |
+| UNDO: Undo a recent tag operation | History picker to undo operations |
+| REPORT: View tag report dashboard | See all TagForge and manual tags |
+| VALIDATE: Check for tag issues | Find and fix tracking problems |
 
 ---
 
@@ -263,7 +215,8 @@ Added to Settings tab with:
 |---------|------|-------------|
 | Inheritance depth | number | Folder levels to inherit (no max) |
 | Tag format | dropdown | frontmatter or inline |
-| Show move confirmation | toggle | Prompt on file move (Phase 6) |
+| Show move confirmation | toggle | Prompt on file move |
+| When files are moved | dropdown | Ask/Always retag/Always keep |
 | Ignored folders | textarea | Paths to skip |
 | Protected tags | textarea | Tags to never touch |
 | Folder aliases | UI list | Custom folder→tags mappings |
@@ -273,7 +226,7 @@ Added to Settings tab with:
 ## Technical Notes
 
 ### Tag Application Method
-Uses `app.fileManager.processFrontMatter()` - Obsidian's official API for safe YAML manipulation. This is why it works reliably vs. raw text manipulation.
+Uses `app.fileManager.processFrontMatter()` - Obsidian's official API for safe YAML manipulation.
 
 ### Tag Tracking
 All auto-applied tags stored in `data.json` under `tagTracking`:
@@ -287,6 +240,9 @@ All auto-applied tags stored in `data.json` under `tagTracking`:
   }
 }
 ```
+
+### Operation History
+Last 50 operations stored in `data.json` under `operationHistory`. Updated on file rename to maintain correct paths.
 
 ### Deploy Workflow
 1. Edit files in `C:\Users\bwales\projects\obsidian-plugins\tagforge\`
@@ -302,7 +258,7 @@ All auto-applied tags stored in `data.json` under `tagTracking`:
 - **Repo initialized:** Yes
 - **GitHub connected:** Yes
 - **Branch strategy:** Phase branches, merge after each phase
-- **Current branch:** `main` (user to create phase branch as needed)
+- **Current branch:** `phase-8-polish`
 - **Commits:** User handles all git operations
 
 ---
@@ -311,20 +267,14 @@ All auto-applied tags stored in `data.json` under `tagTracking`:
 
 | Phase | Focus | Priority |
 |-------|-------|----------|
-| 6 | Move Handling | COMPLETE |
 | 7 | Advanced Rules | Content, filename, template |
-| 8 | Polish & UX | Undo, reports, validation |
+| 8 | Polish & UX | COMPLETE |
 | 9 | Mobile Optimization | User requested |
 
 ### Phase 7: Advanced Rules (Future - user noted this needs more planning)
 - Filename pattern rules (regex/glob) - requires opt-in setting
 - Content-based rules (search patterns)
 - Template integration
-
-### Phase 8: Polish & UX
-- Undo/history
-- Tag report dashboard
-- Validation warnings
 
 ### Phase 9: Mobile Optimization (User Request)
 - Responsive CSS for all modals
@@ -335,36 +285,38 @@ All auto-applied tags stored in `data.json` under `tagTracking`:
 
 ## Lessons Learned This Session
 
-1. **onLayoutReady is critical** - Always wrap vault event listeners to prevent firing during initial load
-2. **Obsidian's processFrontMatter** - The correct way to modify YAML, handles all edge cases
-3. **Preserve scroll position** - Store and restore scrollTop when re-rendering dynamic lists
-4. **Modal width in Obsidian** - Target `.modal-content` for sizing, not the outer container
-5. **Backward compatibility** - Handle both old and new data formats when changing settings structure
-6. **Undo move via vault.rename()** - Can programmatically move files back to original path
-7. **Prevent event loops** - When programmatically triggering events (like rename), use a flag to skip the resulting event handler
-8. **Test before documenting** - Don't update docs until testing is complete and all bugs are fixed
-9. **Deploy styles.css** - Copy to deploy directory after build (esbuild only handles main.js)
+1. **Operation history enables undo** - Track before/after state for every tag change
+2. **Update paths on rename** - Operation history must update when files are renamed
+3. **Paginate large lists** - Loading all items at once causes UI freezes
+4. **Case-insensitive tag comparison** - Prevents duplicate tags with different casing
+5. **Single issue type per file** - Conflicting fix options confuse users
+6. **Clear messaging for ignored paths** - Tell users why they can't tag a folder
 
 ---
 
 ## Next Session Prompt
 
 ```
-Phase 8: Polish & UX
+Phase 9: Mobile Optimization
 
 **Directory:** C:\Users\bwales\projects\obsidian-plugins\tagforge\
 **Deploy to:** G:\My Drive\IT\Obsidian Vault\My Notebooks\.obsidian\plugins\tagforge\
-**Current branch:** main (create new branch for next phase)
+**Current branch:** main (create phase-9-mobile branch)
+
+**Docs:**
+- docs\Handoff Log.md
+- docs\ADR-001-Architecture.md
+- docs\Project Summary.md
 
 **Context:**
-- Phases 1-6 COMPLETE
-- Plugin has: auto-watch on create/move, bulk tagging with preview, folder aliases, move handling with dropdown settings
+- Phases 1-8 COMPLETE
+- Plugin has: auto-watch, bulk tagging, folder aliases, move handling, undo/history, tag report, validation
 - Git repo initialized, user handles all git commands
 
-**Phase 8 Features (from ADR Priority List):**
-- Undo/history - ability to undo recent tag operations
-- Tag report dashboard - view all tags applied by TagForge
-- Validation warnings - alert user to potential issues
+**Phase 9 Features (from ADR Priority List):**
+- Responsive modal CSS - all modals work on mobile
+- Touch-friendly UI - larger tap targets, better spacing
+- Mobile testing - test on Obsidian mobile app
 
 **Important:**
 - User handles all git commands - don't run git commands
@@ -402,8 +354,11 @@ Ctrl+P → "Reload app without saving" OR toggle plugin off/on
 
 ## Archived Sessions
 
-### Planning & Documentation Session
-Initial planning, architecture decisions, documentation creation. See above for details.
+### December 30, 2024 - Phase 6 Complete
+Move handling with confirmation modal. See Phase 6 section above.
 
-### Phase 1 Foundation Build Session
-Initial scaffold, settings infrastructure. Had TFile bug. See above for details.
+### December 30, 2024 - Phases 1-5 Complete
+Foundation, auto-watch, bulk operations, hierarchical inheritance.
+
+### Planning & Documentation Session
+Initial planning, architecture decisions, documentation creation.

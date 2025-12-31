@@ -24,7 +24,7 @@
 | 5 | File create watcher | **Done** | `vault.on('create')` wrapped in `onLayoutReady()` |
 | 6 | Basic folder rules | **Done** | Uses hierarchical inheritance from Phase 5 |
 | 7 | Apply tags on file create | **Done** | New files get tags based on location |
-| 8 | File move detection | Planned | Moved to Phase 6 |
+| 8 | File move detection | **Done** | Moved to Phase 6, now complete |
 
 **Phase 2 Goal:** New files automatically get tags based on folder. ✓
 
@@ -78,22 +78,16 @@ Phase 4 features were absorbed into Phase 3's enhanced preview modal:
 
 ---
 
-## Phase 6: Move Handling - NEXT UP
+## Phase 6: Move Handling - COMPLETE
 
 | Order | Feature | Status | Notes |
 |-------|---------|--------|-------|
-| 20 | Move confirmation modal | Planned | Prompt on file path change |
-| 21 | Update tags on confirm | Planned | Remove old auto-tags, apply new |
-| 22 | Undo move option | Planned | Restore file and original tags |
-| 23 | Protected tags | Planned | Settings already exist (`protectedTags`) |
+| 20 | Move confirmation modal | **Done** | Prompt on file path change with 3 options |
+| 21 | Update tags on confirm | **Done** | Remove old auto-tags, apply new |
+| 22 | Undo move option | **Done** | Cancel moves file back to original location |
+| 23 | Protected tags | **Done** | Settings already exist (`protectedTags`) |
 
-**Phase 6 Goal:** Graceful handling of file moves with user control.
-
-**Implementation Notes:**
-- Use `vault.on('rename')` - fires for both renames and moves
-- Detect move by checking if parent folder changed
-- Store original path/tags temporarily for undo
-- `showMoveConfirmation` setting already exists
+**Phase 6 Goal:** Graceful handling of file moves with user control. ✓
 
 ---
 
@@ -110,19 +104,27 @@ Phase 4 features were absorbed into Phase 3's enhanced preview modal:
 
 ---
 
-## Phase 8: Polish & UX
+## Phase 8: Polish & UX - COMPLETE
 
 | Order | Feature | Status | Notes |
 |-------|---------|--------|-------|
-| 28 | Undo/history | Planned | Rollback last operation |
-| 29 | Tag report dashboard | Planned | Visual overview of tag landscape |
-| 30 | Validation warnings | Planned | Missing tags, orphaned tags |
+| 28 | Undo/history | **Done** | Last 50 operations, history picker modal |
+| 29 | Tag report dashboard | **Done** | TagForge tags + manual tags sections |
+| 30 | Validation warnings | **Done** | Orphaned, missing, ignored path issues |
 
-**Phase 8 Goal:** Production-ready with great UX.
+**Phase 8 Goal:** Production-ready with great UX. ✓
+
+### Additional Features Added
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Folder-specific revert | **Done** | `REVERT: Remove auto-tags from specific folder` |
+| Rename path tracking | **Done** | Operation history updates when files renamed |
+| Duplicate tag prevention | **Done** | Case-insensitive comparison |
 
 ---
 
-## Phase 9: Mobile Optimization (User Requested)
+## Phase 9: Mobile Optimization (User Requested) - NEXT UP
 
 | Order | Feature | Status | Notes |
 |-------|---------|--------|-------|
@@ -151,8 +153,7 @@ Phase 4 features were absorbed into Phase 3's enhanced preview modal:
 | Item | Priority | Status |
 |------|----------|--------|
 | ~~TFile type check~~ | ~~High~~ | **RESOLVED** - Changed to `instanceof TFile` |
-
-*No current technical debt items.*
+| Text field occasionally unresponsive | Low | Rare, non-blocking, resolves on its own |
 
 ---
 
