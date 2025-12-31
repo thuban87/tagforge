@@ -119,10 +119,12 @@ Build incrementally with testing at each phase:
 3. **Phase 3:** Bulk operations with preview modal ✓
 4. **Phase 4:** (Absorbed into Phase 3) ✓
 5. **Phase 5:** Hierarchical inheritance, folder aliases ✓
-6. **Phase 6:** Move detection (NEXT)
-7. **Phase 7:** Advanced rules (content, filename, template)
-8. **Phase 8:** Polish (undo, reports, validation)
-9. **Phase 9:** Mobile optimization
+6. **Phase 6:** Move detection with confirmation modal ✓
+7. **Phase 7:** Advanced rules (content, filename, template) - FUTURE
+8. **Phase 8:** Polish (undo/history, reports, validation) ✓
+9. **Phase 9:** Mobile optimization, command renaming, ribbon icons ✓
+
+**Current Status:** All core phases complete! Only Phase 7 (Advanced Rules) remains for future implementation.
 
 ---
 
@@ -134,6 +136,8 @@ Build incrementally with testing at each phase:
 - **Test vault:** ~300 files, directories 5-7 levels deep
 - **Build:** TypeScript + esbuild (outputs directly to deploy target)
 - **Hot reload:** Available via Obsidian Hot Reload plugin or manual reload
+- **Mobile:** Tested on Android, responsive CSS for all modals
+- **Sync:** Compatible with Obsidian Sync (enable "Plugin settings" to sync tracking data)
 
 ---
 

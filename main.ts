@@ -101,51 +101,51 @@ export default class TagForgePlugin extends Plugin {
 		// Add settings tab
 		this.addSettingTab(new TagForgeSettingTab(this.app, this));
 
-		// Add command to manually trigger tagging (for testing)
+		// Add command to manually trigger tagging
 		this.addCommand({
 			id: 'tag-current-file',
-			name: 'Tag current file based on folder',
+			name: 'TAG: Manually tag current file',
 			callback: () => this.tagCurrentFile(),
 		});
 
-		// Emergency revert command
+		// Remove auto-applied tags
 		this.addCommand({
 			id: 'revert-all-auto-tags',
-			name: 'REVERT: Remove all auto-applied tags',
+			name: 'REMOVE: Remove all auto-applied tags',
 			callback: () => this.revertAllAutoTags(),
 		});
 
-		// Nuclear revert - clear ALL tags
+		// Nuclear remove - clear ALL tags
 		this.addCommand({
 			id: 'revert-all-tags-nuclear',
-			name: 'REVERT: Remove ALL tags from vault (nuclear option)',
+			name: 'REMOVE: Remove ALL tags from vault (nuclear option)',
 			callback: () => this.revertAllTagsNuclear(),
 		});
 
-		// Date-filtered revert
+		// Date-filtered remove
 		this.addCommand({
 			id: 'revert-auto-tags-by-date',
-			name: 'REVERT: Remove auto-tags by date',
+			name: 'REMOVE: Remove auto-tags by date',
 			callback: () => this.revertAutoTagsByDate(),
 		});
 
-		// Folder-specific revert
+		// Folder-specific remove
 		this.addCommand({
 			id: 'revert-auto-tags-by-folder',
-			name: 'REVERT: Remove auto-tags from specific folder',
+			name: 'REMOVE: Remove auto-tags from specific folder',
 			callback: () => this.revertAutoTagsByFolder(),
 		});
 
 		// Phase 3: Bulk operations
 		this.addCommand({
 			id: 'bulk-apply-tags',
-			name: 'BULK: Apply tags to entire vault (with preview)',
+			name: 'BULK ADD: Apply tags to entire vault (with preview)',
 			callback: () => this.bulkApplyTags(),
 		});
 
 		this.addCommand({
 			id: 'bulk-apply-folder',
-			name: 'BULK: Apply tags to specific folder (with preview)',
+			name: 'BULK ADD: Apply tags to specific folder (with preview)',
 			callback: () => this.bulkApplyToFolder(),
 		});
 
@@ -168,6 +168,15 @@ export default class TagForgePlugin extends Plugin {
 			id: 'validate-tags',
 			name: 'VALIDATE: Check for tag issues',
 			callback: () => this.validateTags(),
+		});
+
+		// Phase 9: Ribbon icons for mobile menu
+		this.addRibbonIcon('history', 'TagForge: Undo', () => {
+			this.showUndoHistory();
+		});
+
+		this.addRibbonIcon('tags', 'TagForge: Bulk Add to folder', () => {
+			this.bulkApplyToFolder();
 		});
 
 		// Phase 2: Watch for new files (only after vault is fully loaded)
