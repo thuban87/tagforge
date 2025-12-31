@@ -989,3 +989,412 @@
 .bbab-tf-fix-btn:hover {
     opacity: 0.9;
 }
+
+/* ============================================================================
+   Phase 9: Mobile Optimization
+   ============================================================================ */
+
+/* ----------------------------------------------------------------------------
+   Mobile Breakpoint: 600px
+   Targets most phones and small tablets
+   ---------------------------------------------------------------------------- */
+
+@media screen and (max-width: 600px) {
+
+    /* ========================================================================
+       Modal Base Styles - Full Width on Mobile
+       ======================================================================== */
+
+    .bbab-tf-modal,
+    .bbab-tf-date-picker-modal,
+    .bbab-tf-bulk-preview-modal,
+    .bbab-tf-folder-picker-modal,
+    .bbab-tf-move-modal,
+    .bbab-tf-undo-history-modal,
+    .bbab-tf-report-modal,
+    .bbab-tf-validation-modal {
+        padding: 1em;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* Override modal content sizing */
+    .bbab-tf-bulk-preview-modal .modal-content,
+    .bbab-tf-report-modal .modal-content {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    /* Remove min-width constraints on mobile */
+    .bbab-tf-folder-picker-modal,
+    .bbab-tf-move-modal {
+        min-width: unset;
+    }
+
+    /* ========================================================================
+       Touch-Friendly Buttons - Minimum 44px height (iOS guideline)
+       ======================================================================== */
+
+    .bbab-tf-button,
+    .bbab-tf-undo-btn,
+    .bbab-tf-fix-btn,
+    .bbab-tf-clear-btn,
+    .bbab-tf-alias-remove,
+    .bbab-tf-report-expand-btn,
+    .bbab-tf-report-show-all-btn,
+    .bbab-tf-undo-expand-toggle,
+    .bbab-tf-button-container button,
+    .bbab-tf-move-buttons button,
+    .bbab-tf-selection-btns button,
+    .bbab-tf-alias-add-form button {
+        min-height: 44px;
+        padding: 0.75em 1em;
+        font-size: 1em;
+    }
+
+    /* Stack buttons vertically on narrow screens */
+    .bbab-tf-modal-buttons,
+    .bbab-tf-move-buttons,
+    .bbab-tf-button-container {
+        flex-direction: column;
+        gap: 0.75em;
+    }
+
+    .bbab-tf-modal-buttons button,
+    .bbab-tf-move-buttons button,
+    .bbab-tf-button-container button {
+        width: 100%;
+    }
+
+    /* Selection buttons row - allow wrapping */
+    .bbab-tf-selection-btns {
+        flex-wrap: wrap;
+    }
+
+    .bbab-tf-selection-btns button {
+        flex: 1;
+        min-width: 80px;
+    }
+
+    /* ========================================================================
+       Touch-Friendly Interactive Elements
+       ======================================================================== */
+
+    /* Larger checkboxes */
+    input[type="checkbox"] {
+        width: 22px;
+        height: 22px;
+        min-width: 22px;
+        min-height: 22px;
+    }
+
+    /* Date list items - larger touch targets */
+    .bbab-tf-date-item {
+        padding: 1em;
+        min-height: 48px;
+        gap: 1em;
+    }
+
+    .bbab-tf-date-item label {
+        font-size: 1em;
+    }
+
+    /* Folder items - larger touch targets */
+    .bbab-tf-folder-item {
+        padding: 1em;
+        min-height: 48px;
+    }
+
+    /* Undo list items */
+    .bbab-tf-undo-item {
+        padding: 1em;
+        gap: 0.75em;
+    }
+
+    .bbab-tf-undo-info {
+        flex-wrap: wrap;
+        gap: 0.5em;
+    }
+
+    .bbab-tf-undo-description {
+        flex-basis: 100%;
+        order: 2;
+        margin-top: 0.25em;
+    }
+
+    .bbab-tf-undo-details {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75em;
+    }
+
+    .bbab-tf-undo-btn {
+        width: 100%;
+    }
+
+    /* Validation items */
+    .bbab-tf-validation-item {
+        padding: 1em;
+    }
+
+    .bbab-tf-fix-btn {
+        width: 100%;
+    }
+
+    /* Report tag items */
+    .bbab-tf-report-tag-item {
+        padding: 1em;
+    }
+
+    /* Preview items */
+    .bbab-tf-preview-item {
+        padding: 1em;
+    }
+
+    .bbab-tf-preview-header {
+        flex-wrap: wrap;
+        gap: 0.75em;
+    }
+
+    /* ========================================================================
+       Input Fields - Touch Friendly
+       ======================================================================== */
+
+    .bbab-tf-folder-search,
+    .bbab-tf-additional-input,
+    .bbab-tf-alias-input,
+    .bbab-tf-settings-container textarea {
+        min-height: 44px;
+        padding: 0.75em;
+        font-size: 16px; /* Prevents iOS zoom on focus */
+    }
+
+    /* ========================================================================
+       Alias Form - Stack on Mobile
+       ======================================================================== */
+
+    .bbab-tf-alias-add-form {
+        flex-direction: column;
+        gap: 0.75em;
+    }
+
+    .bbab-tf-alias-input {
+        width: 100%;
+        min-width: unset;
+    }
+
+    .bbab-tf-alias-add-form button {
+        width: 100%;
+    }
+
+    /* Alias rows */
+    .bbab-tf-alias-row {
+        flex-wrap: wrap;
+        padding: 0.75em;
+        gap: 0.5em;
+    }
+
+    .bbab-tf-alias-remove {
+        width: 100%;
+        margin-left: 0;
+        margin-top: 0.5em;
+    }
+
+    /* ========================================================================
+       Level Toggles - Better Mobile Layout
+       ======================================================================== */
+
+    .bbab-tf-level-toggles {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75em;
+    }
+
+    .bbab-tf-level-toggle {
+        min-height: 44px;
+        padding: 0.5em 0;
+    }
+
+    .bbab-tf-skip-all {
+        margin-left: 0;
+        padding-left: 0;
+        border-left: none;
+        padding-top: 0.5em;
+        border-top: 1px solid var(--background-modifier-border);
+        width: 100%;
+    }
+
+    /* Apply-to radio options */
+    .bbab-tf-apply-to {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75em;
+    }
+
+    .bbab-tf-apply-to label {
+        min-height: 44px;
+        padding: 0.5em 0;
+    }
+
+    /* ========================================================================
+       Report Summary - Stack Stats on Mobile
+       ======================================================================== */
+
+    .bbab-tf-report-summary {
+        flex-direction: column;
+        gap: 0.75em;
+    }
+
+    /* ========================================================================
+       Remembered Choice - Stack on Mobile
+       ======================================================================== */
+
+    .bbab-tf-remembered-choice {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5em;
+    }
+
+    /* ========================================================================
+       Move Modal Adjustments
+       ======================================================================== */
+
+    .bbab-tf-move-paths {
+        word-break: break-all;
+        font-size: 0.85em;
+    }
+
+    .bbab-tf-remember-choice {
+        min-height: 44px;
+        padding: 0.5em 0;
+    }
+
+    /* ========================================================================
+       Scrollable Lists - Adjust Heights for Mobile
+       ======================================================================== */
+
+    .bbab-tf-date-list,
+    .bbab-tf-folder-list,
+    .bbab-tf-undo-list,
+    .bbab-tf-validation-list,
+    .bbab-tf-report-tag-list {
+        max-height: 50vh;
+    }
+
+    .bbab-tf-preview {
+        max-height: 45vh;
+    }
+
+    /* ========================================================================
+       Typography Adjustments
+       ======================================================================== */
+
+    .bbab-tf-modal-title {
+        font-size: 1.1em;
+    }
+
+    /* Monospace text - slightly smaller on mobile */
+    .bbab-tf-validation-path,
+    .bbab-tf-undo-file,
+    .bbab-tf-report-file,
+    .bbab-tf-alias-folder {
+        font-size: 0.8em;
+        word-break: break-all;
+    }
+
+    /* ========================================================================
+       Settings Page Adjustments
+       ======================================================================== */
+
+    .bbab-tf-settings-container {
+        max-width: 100%;
+        padding: 0 0.5em;
+    }
+
+    .bbab-tf-example {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5em;
+    }
+
+    .bbab-tf-info {
+        padding: 0.75em;
+    }
+
+}
+
+/* ----------------------------------------------------------------------------
+   Extra Small Screens (under 400px)
+   ---------------------------------------------------------------------------- */
+
+@media screen and (max-width: 400px) {
+
+    /* Even more compact padding */
+    .bbab-tf-modal,
+    .bbab-tf-date-picker-modal,
+    .bbab-tf-bulk-preview-modal,
+    .bbab-tf-folder-picker-modal,
+    .bbab-tf-move-modal,
+    .bbab-tf-undo-history-modal,
+    .bbab-tf-report-modal,
+    .bbab-tf-validation-modal {
+        padding: 0.75em;
+    }
+
+    /* Smaller type badges */
+    .bbab-tf-undo-type,
+    .bbab-tf-issue-type {
+        font-size: 0.6em;
+    }
+
+    /* Tighter list heights */
+    .bbab-tf-date-list,
+    .bbab-tf-folder-list,
+    .bbab-tf-undo-list,
+    .bbab-tf-validation-list,
+    .bbab-tf-report-tag-list {
+        max-height: 40vh;
+    }
+
+}
+
+/* ----------------------------------------------------------------------------
+   Touch Device Enhancements (hover support detection)
+   ---------------------------------------------------------------------------- */
+
+@media (hover: none) and (pointer: coarse) {
+
+    /* Remove hover effects that don't work on touch */
+    .bbab-tf-button:hover,
+    .bbab-tf-alias-remove:hover,
+    .bbab-tf-clear-btn:hover,
+    .bbab-tf-undo-btn:hover,
+    .bbab-tf-fix-btn:hover,
+    .bbab-tf-report-expand-btn:hover,
+    .bbab-tf-report-show-all-btn:hover,
+    .bbab-tf-undo-expand-toggle:hover,
+    .bbab-tf-date-item:hover,
+    .bbab-tf-folder-item:hover,
+    .bbab-tf-undo-item:hover,
+    .bbab-tf-validation-item:hover {
+        background: inherit;
+        opacity: 1;
+    }
+
+    /* Add active states for touch feedback */
+    .bbab-tf-button:active,
+    .bbab-tf-undo-btn:active,
+    .bbab-tf-fix-btn:active {
+        opacity: 0.7;
+        transform: scale(0.98);
+    }
+
+    .bbab-tf-date-item:active,
+    .bbab-tf-folder-item:active,
+    .bbab-tf-undo-item:active,
+    .bbab-tf-validation-item:active {
+        background: var(--background-secondary);
+    }
+
+}
