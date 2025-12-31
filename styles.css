@@ -603,3 +603,389 @@
     color: var(--text-on-accent);
     border-color: var(--background-modifier-error);
 }
+
+/* ============================================================================
+   Undo History Modal (Phase 8)
+   ============================================================================ */
+
+.bbab-tf-undo-history-modal {
+    padding: 1em;
+}
+
+.bbab-tf-undo-history-modal h2 {
+    margin-top: 0;
+    margin-bottom: 0.5em;
+}
+
+.bbab-tf-undo-list {
+    max-height: 400px;
+    overflow-y: auto;
+    margin: 1em 0;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+}
+
+.bbab-tf-undo-item {
+    padding: 0.75em 1em;
+    border-bottom: 1px solid var(--background-modifier-border);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em;
+}
+
+.bbab-tf-undo-item:last-child {
+    border-bottom: none;
+}
+
+.bbab-tf-undo-item:hover {
+    background: var(--background-secondary);
+}
+
+.bbab-tf-undo-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75em;
+}
+
+.bbab-tf-undo-type {
+    font-size: 0.7em;
+    font-weight: 600;
+    padding: 0.2em 0.5em;
+    border-radius: 3px;
+    text-transform: uppercase;
+}
+
+.bbab-tf-type-apply {
+    background: var(--background-modifier-success);
+    color: var(--text-on-accent);
+}
+
+.bbab-tf-type-bulk {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+.bbab-tf-type-move {
+    background: var(--text-accent);
+    color: var(--background-primary);
+}
+
+.bbab-tf-type-revert {
+    background: var(--background-modifier-error);
+    color: var(--text-on-accent);
+}
+
+.bbab-tf-type-remove {
+    background: var(--text-muted);
+    color: var(--background-primary);
+}
+
+.bbab-tf-undo-description {
+    font-weight: 500;
+    flex-grow: 1;
+}
+
+.bbab-tf-undo-details {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.bbab-tf-undo-meta {
+    font-size: 0.85em;
+    color: var(--text-muted);
+}
+
+.bbab-tf-undo-btn {
+    padding: 0.3em 0.75em;
+    font-size: 0.85em;
+    background: var(--background-modifier-error);
+    color: var(--text-on-accent);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.bbab-tf-undo-btn:hover {
+    opacity: 0.9;
+}
+
+.bbab-tf-undo-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5em;
+}
+
+.bbab-tf-undo-expand-toggle {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0.2em 0.4em;
+    font-size: 0.8em;
+    color: var(--text-muted);
+}
+
+.bbab-tf-undo-expand-toggle:hover {
+    color: var(--text-normal);
+}
+
+.bbab-tf-undo-files {
+    margin-top: 0.5em;
+    padding-left: 1.5em;
+    border-left: 2px solid var(--background-modifier-border);
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.bbab-tf-undo-files.hidden {
+    display: none;
+}
+
+.bbab-tf-undo-file {
+    font-size: 0.85em;
+    color: var(--text-muted);
+    padding: 0.15em 0;
+    font-family: var(--font-monospace);
+}
+
+.bbab-tf-undo-more {
+    font-style: italic;
+    color: var(--text-faint);
+}
+
+/* ============================================================================
+   Tag Report Modal (Phase 8)
+   ============================================================================ */
+
+.bbab-tf-report-modal {
+    padding: 1em;
+}
+
+.bbab-tf-report-modal .modal-content {
+    width: 80vw;
+    max-width: 700px;
+}
+
+.bbab-tf-report-modal h2 {
+    margin-top: 0;
+    margin-bottom: 0.5em;
+}
+
+.bbab-tf-report-summary {
+    display: flex;
+    gap: 1.5em;
+    margin: 1em 0;
+    padding: 1em;
+    background: var(--background-secondary);
+    border-radius: 4px;
+}
+
+.bbab-tf-report-stat {
+    font-weight: 500;
+}
+
+.bbab-tf-report-section {
+    margin: 1.5em 0;
+}
+
+.bbab-tf-report-section h3 {
+    margin: 0 0 0.75em 0;
+    font-size: 1em;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding-bottom: 0.25em;
+}
+
+.bbab-tf-no-data {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.bbab-tf-report-tag-list {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+}
+
+.bbab-tf-report-tag-item {
+    padding: 0.75em 1em;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.bbab-tf-report-tag-item:last-child {
+    border-bottom: none;
+}
+
+.bbab-tf-report-tag-name {
+    font-weight: 600;
+    color: var(--text-accent);
+    margin-right: 0.75em;
+}
+
+.bbab-tf-report-tag-count {
+    color: var(--text-muted);
+    font-size: 0.9em;
+    margin-right: 0.75em;
+}
+
+.bbab-tf-report-expand-btn {
+    padding: 0.2em 0.5em;
+    font-size: 0.8em;
+    background: transparent;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 3px;
+    cursor: pointer;
+    color: var(--text-muted);
+}
+
+.bbab-tf-report-expand-btn:hover {
+    background: var(--background-secondary);
+}
+
+.bbab-tf-report-files {
+    margin-top: 0.5em;
+    padding-left: 1em;
+    border-left: 2px solid var(--background-modifier-border);
+}
+
+.bbab-tf-report-files.hidden {
+    display: none;
+}
+
+.bbab-tf-report-file {
+    font-size: 0.85em;
+    color: var(--text-muted);
+    padding: 0.2em 0;
+    font-family: var(--font-monospace);
+}
+
+.bbab-tf-report-manual-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5em;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.bbab-tf-report-manual-tag {
+    background: var(--background-secondary);
+    padding: 0.25em 0.75em;
+    border-radius: 1em;
+    font-size: 0.9em;
+    color: var(--text-muted);
+}
+
+.bbab-tf-report-more {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    margin-top: 0.5em;
+    padding-top: 0.5em;
+    border-top: 1px dashed var(--background-modifier-border);
+}
+
+.bbab-tf-report-more-text {
+    font-size: 0.85em;
+    color: var(--text-faint);
+    font-style: italic;
+}
+
+.bbab-tf-report-show-all-btn {
+    padding: 0.2em 0.5em;
+    font-size: 0.75em;
+    background: transparent;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 3px;
+    cursor: pointer;
+    color: var(--text-muted);
+}
+
+.bbab-tf-report-show-all-btn:hover {
+    background: var(--background-secondary);
+}
+
+/* ============================================================================
+   Validation Results Modal (Phase 8)
+   ============================================================================ */
+
+.bbab-tf-validation-modal {
+    padding: 1em;
+}
+
+.bbab-tf-validation-modal h2 {
+    margin-top: 0;
+    margin-bottom: 0.5em;
+}
+
+.bbab-tf-validation-list {
+    max-height: 400px;
+    overflow-y: auto;
+    margin: 1em 0;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+}
+
+.bbab-tf-validation-item {
+    padding: 0.75em 1em;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.bbab-tf-validation-item:last-child {
+    border-bottom: none;
+}
+
+.bbab-tf-validation-item:hover {
+    background: var(--background-secondary);
+}
+
+.bbab-tf-issue-type {
+    font-size: 0.7em;
+    font-weight: 600;
+    padding: 0.2em 0.5em;
+    border-radius: 3px;
+    text-transform: uppercase;
+    margin-right: 0.75em;
+}
+
+.bbab-tf-issue-orphaned-tracking {
+    background: var(--background-modifier-error);
+    color: var(--text-on-accent);
+}
+
+.bbab-tf-issue-missing-tags {
+    background: var(--text-accent);
+    color: var(--background-primary);
+}
+
+.bbab-tf-issue-ignored-path-tracked {
+    background: var(--text-muted);
+    color: var(--background-primary);
+}
+
+.bbab-tf-validation-path {
+    font-family: var(--font-monospace);
+    font-size: 0.9em;
+}
+
+.bbab-tf-validation-desc {
+    font-size: 0.85em;
+    color: var(--text-muted);
+    margin-top: 0.25em;
+}
+
+.bbab-tf-fix-btn {
+    margin-top: 0.5em;
+    padding: 0.3em 0.75em;
+    font-size: 0.85em;
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.bbab-tf-fix-btn:hover {
+    opacity: 0.9;
+}
