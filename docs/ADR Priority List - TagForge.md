@@ -1,6 +1,7 @@
 # ADR Priority List - TagForge
 
 **Last Updated:** December 30, 2024
+**Version:** 1.0.0 (Marketplace Ready)
 
 ---
 
@@ -144,15 +145,38 @@ Phase 4 features were absorbed into Phase 3's enhanced preview modal:
 
 ---
 
+## Marketplace Prep (v1.0.0) - COMPLETE
+
+| Order | Feature | Status | Notes |
+|-------|---------|--------|-------|
+| 34 | Code review (Gemini issues) | **Done** | 7 issues addressed |
+| 35 | Deep code review | **Done** | Additional issues found and fixed |
+| 36 | Console log cleanup | **Done** | Removed 13 console.log statements |
+| 37 | Bug fixes (invisible tags, protected tags) | **Done** | Validation and case-insensitivity |
+| 38 | Throttling & debouncing | **Done** | UI freeze prevention, duplicate operation prevention |
+| 39 | Timeout cleanup | **Done** | Proper onunload() lifecycle |
+| 40 | Auto-tagging toggle | **Done** | Global enable/disable setting |
+| 41 | README.md | **Done** | Comprehensive marketplace documentation |
+| 42 | LICENSE | **Done** | MIT License |
+| 43 | Version bump | **Done** | 1.0.0 in manifest.json and package.json |
+
+**Marketplace Prep Goal:** Production-ready, documented, and polished for community submission. ✓
+
+---
+
 ## Future Possibilities (Not Scheduled)
 
-| Feature | Notes |
-|---------|-------|
-| Tag suggestions | AI-powered tag recommendations |
-| Graph view integration | Custom graph filtering presets |
-| Tag cleanup command | Remove orphaned/unused tags |
-| Import/export rules | Share configurations |
-| Multi-vault sync | Share rules across vaults |
+| Feature | Notes | Documentation |
+|---------|-------|---------------|
+| Folder Tag Preview | Preview tags before creating files | `docs/Feature Proposal - Folder Tag Preview.md` |
+| Phase 7: Filename patterns | Regex/glob on filenames | - |
+| Phase 7: Content-based rules | Search content for patterns | - |
+| Phase 7: Template integration | Tags based on template origin | - |
+| Tag suggestions | AI-powered tag recommendations | - |
+| Graph view integration | Custom graph filtering presets | - |
+| Tag cleanup command | Remove orphaned/unused tags | - |
+| Import/export rules | Share configurations | - |
+| Multi-vault sync | Share rules across vaults | - |
 
 ---
 
@@ -161,6 +185,13 @@ Phase 4 features were absorbed into Phase 3's enhanced preview modal:
 | Item | Priority | Status |
 |------|----------|--------|
 | ~~TFile type check~~ | ~~High~~ | **RESOLVED** - Changed to `instanceof TFile` |
+| ~~Console log spam~~ | ~~Medium~~ | **RESOLVED** - Removed 13 console.log statements |
+| ~~Invisible tags~~ | ~~High~~ | **RESOLVED** - Added validation in folderNameToTag |
+| ~~Protected tags case sensitivity~~ | ~~Medium~~ | **RESOLVED** - Case-insensitive comparison |
+| ~~UI freeze on bulk operations~~ | ~~High~~ | **RESOLVED** - Throttling every 50 files |
+| ~~Timeout memory leaks~~ | ~~Medium~~ | **RESOLVED** - Proper cleanup in onunload |
+| ~~File watcher duplicates~~ | ~~Medium~~ | **RESOLVED** - Debouncing with pendingFileOps |
+| ~~Preview ignores depth~~ | ~~Medium~~ | **RESOLVED** - BulkPreviewModal respects inheritDepth |
 | Text field occasionally unresponsive | Low | Rare, non-blocking, resolves on its own |
 
 ---
