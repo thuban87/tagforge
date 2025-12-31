@@ -12,7 +12,7 @@
 
 ### Session Summary
 
-Implemented file move handling with confirmation modal. When files are moved between folders, users can choose to retag (apply new folder-based tags), leave tags unchanged, or cancel (undo the move). Added "Remember my choice" option for streamlined batch moves, with settings UI to view/clear the remembered preference.
+Implemented file move handling with confirmation modal. When files are moved between folders, users can choose to retag (apply new folder-based tags), leave tags unchanged, or cancel (undo the move). Added "Remember my choice" option for streamlined batch moves. Settings UI uses a single dropdown with three options: Ask every time (default), Always retag, Always keep current tags. Fixed Cancel loop bug with pendingUndoPath flag.
 
 ### What Was Accomplished
 
@@ -28,43 +28,45 @@ Implemented file move handling with confirmation modal. When files are moved bet
 
 **Move Detection:**
 - `vault.on('rename')` event handler (wrapped in `onLayoutReady`)
-- Detects folder changes vs simple renames
+- Detects folder changes vs simple renames (only triggers when parent folder changes)
 - Only triggers for `.md` files
 - Respects ignored paths
+- `pendingUndoPath` flag prevents modal loop when Cancel undoes a move
 
 **Move Confirmation Modal:**
 - Shows old folder → new folder paths
+- Clear explanation of each option with bullet list
 - Three actions:
   - **Continue** - Remove old auto-tags, apply new folder-based tags
-  - **Leave Tags** - Keep current tags unchanged
+  - **Leave Tags** - Keep current tags, don't add new ones
   - **Cancel** - Move file back to original location (undo)
 - "Remember my choice" checkbox (for Continue/Leave only)
 
 **Settings Integration:**
-- `showMoveConfirmation` toggle (existing, now functional)
-- When OFF: silently retags on move (default behavior)
-- When ON + remembered choice: uses remembered action silently
-- When ON + no remembered choice: shows modal
-- Remembered choice display with "Clear" button in settings
-- Disabling toggle clears remembered choice
+- Single dropdown "When files are moved" with three options:
+  - **Ask every time** (default) - Shows modal on each move
+  - **Always retag** - Silently removes old tags, applies new tags
+  - **Always keep current tags** - Silently preserves existing tags
+- Dropdown syncs with "Remember my choice" selection from modal
 
 **Tag Management:**
 - `removeAutoTagsFromFile()` - Removes only tracked auto-tags
 - Respects protected tags (never removed)
-- Updates tag tracking on path changes
+- Updates tag tracking on path changes (including simple renames)
 
-### New Setting
+### New Settings
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
+| showMoveConfirmation | boolean | true | Controls whether modal appears |
 | rememberedMoveAction | 'continue' \| 'leave' \| null | null | Stored remembered choice |
 
 ### Files Modified
 
 | File | Changes |
 |------|---------|
-| `main.ts` | Added `rememberedMoveAction` setting, `MoveConfirmationModal`, `handleFileRename`, `handleMoveResult`, `applyMoveRetag`, `removeAutoTagsFromFile`, `getParentFolder`, updated settings UI |
-| `styles.css` | Added move modal styles, remembered choice display styles |
+| `main.ts` | Added `rememberedMoveAction` setting, `pendingUndoPath` property, `MoveConfirmationModal`, `handleFileRename`, `handleMoveResult`, `applyMoveRetag`, `removeAutoTagsFromFile`, `getParentFolder`, dropdown settings UI |
+| `styles.css` | Added move modal styles, options list styles |
 
 ---
 
@@ -339,13 +341,16 @@ All auto-applied tags stored in `data.json` under `tagTracking`:
 4. **Modal width in Obsidian** - Target `.modal-content` for sizing, not the outer container
 5. **Backward compatibility** - Handle both old and new data formats when changing settings structure
 6. **Undo move via vault.rename()** - Can programmatically move files back to original path
+7. **Prevent event loops** - When programmatically triggering events (like rename), use a flag to skip the resulting event handler
+8. **Test before documenting** - Don't update docs until testing is complete and all bugs are fixed
+9. **Deploy styles.css** - Copy to deploy directory after build (esbuild only handles main.js)
 
 ---
 
 ## Next Session Prompt
 
 ```
-Phase 7: Advanced Rules (Optional) OR Phase 9: Mobile Optimization
+Phase 8: Polish & UX
 
 **Directory:** C:\Users\bwales\projects\obsidian-plugins\tagforge\
 **Deploy to:** G:\My Drive\IT\Obsidian Vault\My Notebooks\.obsidian\plugins\tagforge\
@@ -353,23 +358,19 @@ Phase 7: Advanced Rules (Optional) OR Phase 9: Mobile Optimization
 
 **Context:**
 - Phases 1-6 COMPLETE
-- Plugin has: auto-watch on create/move, bulk tagging with preview, folder aliases, move handling with "remember choice"
+- Plugin has: auto-watch on create/move, bulk tagging with preview, folder aliases, move handling with dropdown settings
 - Git repo initialized, user handles all git commands
 
-**Phase 7 (Advanced Rules) - User noted this needs careful planning:**
-- Filename pattern rules should be OPT-IN (not default behavior)
-- Requires a whole system to build out
-- May be deferred if user wants to focus on mobile first
-
-**Phase 9 (Mobile Optimization) - Alternative next step:**
-- Responsive CSS for all modals
-- Touch-friendly UI elements
-- Test on Obsidian mobile
+**Phase 8 Features (from ADR Priority List):**
+- Undo/history - ability to undo recent tag operations
+- Tag report dashboard - view all tags applied by TagForge
+- Validation warnings - alert user to potential issues
 
 **Important:**
 - User handles all git commands - don't run git commands
 - Pause after phase completion for user to commit
-- Copy styles.css manually after build (esbuild only handles main.js)
+- Copy styles.css to deploy directory after build
+- Test thoroughly before updating docs
 ```
 
 ---
