@@ -1,7 +1,19 @@
 # ADR Priority List - TagForge
 
-**Last Updated:** December 30, 2024
-**Version:** 1.0.0 (Marketplace Ready)
+**Last Updated:** January 2, 2025
+**Version:** 1.0.1 (UI Improvements + Bulk Edit Mode)
+
+---
+
+## Post-v1.0.0: UI Improvements - IN PROGRESS
+
+| Order | Feature | Status | Notes |
+|-------|---------|--------|-------|
+| 44 | Settings-window sized modals | **Done** | 90vw x 80vh, max 900px, mobile full-screen |
+| 45 | 2-column layout for BulkPreviewModal | **Done** | File tree left, controls right |
+| 46 | Grouped move modal close button fix | **Done** | setTimeout + fs.rmdirSync bypass (Google Drive phantoms remain) |
+| 47 | Windows system file cleanup | **Done** | desktop.ini, Thumbs.db deleted on folder cleanup |
+| 48 | Edit/delete tags in bulk add modal | **Done** | Edit mode with strikethrough deletion, auto-tags freely editable, manual tags with warning |
 
 ---
 
@@ -168,9 +180,9 @@ Phase 4 features were absorbed into Phase 3's enhanced preview modal:
 
 | Feature | Notes | Documentation |
 |---------|-------|---------------|
+| Full Tag Management Modal | Dedicated modal to drill into folders/files and add/remove/edit tags granularly | - |
 | Grouped Move Modal Refinement | Improve visual hierarchy, spacing, readability | - |
 | BulkPreviewModal File Tree | Collapsible folder tree instead of flat list | - |
-| Bulk Add Tag Management | Wipe existing tags / granular tag checklist | - |
 | Folder Tag Preview | Preview tags before creating files | `docs/Feature Proposal - Folder Tag Preview.md` |
 | Phase 7: Filename patterns | Regex/glob on filenames | - |
 | Phase 7: Content-based rules | Search content for patterns | - |

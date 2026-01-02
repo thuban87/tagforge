@@ -94,6 +94,137 @@
 }
 
 /* ============================================================================
+   Large Modal Base - Settings Window Sized
+   ============================================================================ */
+
+.bbab-tf-large-modal {
+    width: 90vw !important;
+    max-width: 900px !important;
+    height: 80vh !important;
+    max-height: 80vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+.bbab-tf-large-modal .modal-close-button {
+    top: 12px;
+    right: 12px;
+}
+
+/* Modal content containers - fill available height */
+.bbab-tf-large-modal .bbab-tf-bulk-preview-modal,
+.bbab-tf-large-modal .bbab-tf-folder-picker-modal,
+.bbab-tf-large-modal .bbab-tf-date-picker-modal,
+.bbab-tf-large-modal .bbab-tf-move-modal,
+.bbab-tf-large-modal .bbab-tf-grouped-move-modal,
+.bbab-tf-large-modal .bbab-tf-undo-history-modal,
+.bbab-tf-large-modal .bbab-tf-report-modal,
+.bbab-tf-large-modal .bbab-tf-validation-modal {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    padding: 1.5em;
+}
+
+/* Scrollable list areas - expand to fill space */
+.bbab-tf-large-modal .bbab-tf-preview,
+.bbab-tf-large-modal .bbab-tf-folder-list,
+.bbab-tf-large-modal .bbab-tf-date-list,
+.bbab-tf-large-modal .bbab-tf-grouped-move-list,
+.bbab-tf-large-modal .bbab-tf-undo-list,
+.bbab-tf-large-modal .bbab-tf-report-tag-list,
+.bbab-tf-large-modal .bbab-tf-validation-list {
+    flex: 1;
+    max-height: none;
+    min-height: 200px;
+}
+
+/* ============================================================================
+   Two-Column Layout (BulkPreviewModal)
+   ============================================================================ */
+
+.bbab-tf-modal-header {
+    flex-shrink: 0;
+    margin-bottom: 1em;
+}
+
+.bbab-tf-modal-header h2 {
+    margin: 0 0 0.25em 0;
+}
+
+.bbab-tf-columns {
+    display: flex;
+    gap: 1.5em;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.bbab-tf-column-left {
+    flex: 2;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+}
+
+.bbab-tf-column-right {
+    flex: 1;
+    min-width: 220px;
+    max-width: 280px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.bbab-tf-files-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1em;
+    flex-shrink: 0;
+    margin-bottom: 0.5em;
+    flex-wrap: wrap;
+}
+
+.bbab-tf-files-header h3 {
+    margin: 0;
+}
+
+.bbab-tf-column-left .bbab-tf-preview {
+    flex: 1;
+    overflow-y: auto;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+}
+
+.bbab-tf-column-right .bbab-tf-section {
+    margin-bottom: 1.5em;
+}
+
+.bbab-tf-column-right .bbab-tf-section h3 {
+    margin: 0 0 0.75em 0;
+    font-size: 0.95em;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding-bottom: 0.25em;
+}
+
+.bbab-tf-column-right .bbab-tf-level-toggles {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5em;
+}
+
+.bbab-tf-column-right .bbab-tf-apply-to {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5em;
+    margin-top: 0.75em;
+}
+
+/* ============================================================================
    Future: Modal Styles (Phase 6 - Move Confirmation)
    ============================================================================ */
 
@@ -451,6 +582,155 @@
 .bbab-tf-tag-current {
     color: #808080 !important;
     opacity: 0.8;
+}
+
+/* ============================================================================
+   Edit Mode (Bulk Preview Modal)
+   ============================================================================ */
+
+/* Edit buttons container */
+.bbab-tf-edit-buttons {
+    margin-top: 0.75em;
+    padding-top: 0.75em;
+    border-top: 1px solid var(--background-modifier-border);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5em;
+    align-items: center;
+}
+
+.bbab-tf-edit-tags-btn,
+.bbab-tf-stop-editing-btn,
+.bbab-tf-edit-manual-btn {
+    padding: 0.5em 1em;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.bbab-tf-stop-editing-btn {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border: none;
+}
+
+.bbab-tf-edit-manual-btn {
+    background: transparent;
+    border: 1px solid var(--background-modifier-border);
+    color: var(--text-muted);
+}
+
+.bbab-tf-edit-manual-btn:hover {
+    background: var(--background-secondary);
+}
+
+.bbab-tf-manual-warning {
+    font-size: 0.85em;
+    color: var(--text-error);
+    margin: 0.5em 0 0 0;
+    flex-basis: 100%;
+}
+
+.bbab-tf-manual-active {
+    color: var(--text-accent);
+    font-weight: 500;
+}
+
+/* Right column disabled state */
+.bbab-tf-controls-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Tag chips container */
+.bbab-tf-tag-chips {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.35em;
+}
+
+/* Individual tag chip */
+.bbab-tf-tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25em;
+    padding: 0.15em 0.5em;
+    border-radius: 1em;
+    font-size: 0.9em;
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+}
+
+.bbab-tf-tag-chip-auto {
+    background: var(--background-modifier-success-hover);
+    border-color: var(--background-modifier-success);
+}
+
+.bbab-tf-tag-chip-manual {
+    background: var(--background-secondary);
+    border-color: var(--background-modifier-border);
+}
+
+.bbab-tf-tag-chip-locked {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.bbab-tf-tag-chip-delete {
+    text-decoration: line-through;
+    opacity: 0.7;
+    background: var(--background-modifier-error-hover);
+    border-color: var(--background-modifier-error);
+}
+
+.bbab-tf-tag-chip-delete .bbab-tf-tag-delete-btn {
+    color: var(--text-error);
+}
+
+/* Delete button on chips */
+.bbab-tf-tag-delete-btn {
+    cursor: pointer;
+    font-size: 1.1em;
+    font-weight: bold;
+    line-height: 1;
+    color: var(--text-muted);
+    padding: 0 0.1em;
+    margin-left: 0.1em;
+}
+
+.bbab-tf-tag-delete-btn:hover {
+    color: var(--text-error);
+}
+
+/* Removing label */
+.bbab-tf-tag-label-remove {
+    color: var(--text-error);
+}
+
+/* Mobile adjustments for edit mode */
+@media screen and (max-width: 600px) {
+    .bbab-tf-edit-buttons {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .bbab-tf-edit-tags-btn,
+    .bbab-tf-stop-editing-btn,
+    .bbab-tf-edit-manual-btn {
+        min-height: 44px;
+        width: 100%;
+    }
+
+    .bbab-tf-tag-chip {
+        padding: 0.25em 0.6em;
+    }
+
+    .bbab-tf-tag-delete-btn {
+        min-width: 24px;
+        min-height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
 }
 
 /* ============================================================================
@@ -1196,6 +1476,18 @@
 @media screen and (max-width: 600px) {
 
     /* ========================================================================
+       Large Modal - Full Screen on Mobile
+       ======================================================================== */
+
+    .bbab-tf-large-modal {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 100% !important;
+        max-height: 100% !important;
+        border-radius: 0 !important;
+    }
+
+    /* ========================================================================
        Modal Base Styles - Full Width on Mobile
        ======================================================================== */
 
@@ -1212,6 +1504,33 @@
         width: 100%;
         max-width: 100%;
         box-sizing: border-box;
+    }
+
+    /* ========================================================================
+       Two-Column Layout - Stack on Mobile
+       ======================================================================== */
+
+    .bbab-tf-columns {
+        flex-direction: column;
+        gap: 1em;
+        overflow-y: auto;
+    }
+
+    .bbab-tf-column-left {
+        flex: none;
+        max-height: 50vh;
+    }
+
+    .bbab-tf-column-right {
+        flex: none;
+        max-width: none;
+        min-width: unset;
+    }
+
+    .bbab-tf-files-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5em;
     }
 
     /* Override modal content sizing */
