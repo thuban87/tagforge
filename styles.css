@@ -442,6 +442,219 @@
     cursor: pointer;
 }
 
+/* ============================================================================
+   Phase 10: Folder Rule Section in Bulk Preview Modal
+   ============================================================================ */
+
+.bbab-tf-rule-section {
+    border-top: 1px solid var(--background-modifier-border);
+    padding-top: 1em;
+    margin-top: 1em;
+}
+
+.bbab-tf-rule-check label {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.bbab-tf-rule-description {
+    font-size: 0.85em;
+    color: var(--text-muted);
+    margin: 0.5em 0 1em 0;
+}
+
+.bbab-tf-rule-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em;
+    padding-left: 1.5em;
+}
+
+.bbab-tf-rule-options label {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    cursor: pointer;
+}
+
+/* ============================================================================
+   Phase 10: Rules Management Modal
+   ============================================================================ */
+
+.bbab-tf-rules-modal .bbab-tf-rules-stats {
+    color: var(--text-muted);
+    font-size: 0.9em;
+    margin-top: 0.5em;
+}
+
+.bbab-tf-folder-tree {
+    overflow-y: auto;
+    max-height: calc(100% - 3em);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    padding: 0.5em;
+}
+
+.bbab-tf-tree-item {
+    display: flex;
+    align-items: center;
+    padding: 0.4em 0.5em;
+    cursor: pointer;
+    border-radius: 4px;
+    gap: 0.25em;
+}
+
+.bbab-tf-tree-item:hover {
+    background: var(--background-modifier-hover);
+}
+
+.bbab-tf-tree-item-selected {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+.bbab-tf-tree-item-selected:hover {
+    background: var(--interactive-accent-hover);
+}
+
+.bbab-tf-tree-toggle {
+    width: 1em;
+    text-align: center;
+    font-size: 0.7em;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.bbab-tf-tree-item-selected .bbab-tf-tree-toggle {
+    color: var(--text-on-accent);
+}
+
+.bbab-tf-tree-name {
+    flex: 1;
+}
+
+.bbab-tf-tree-rule-indicator {
+    color: var(--color-green);
+    font-size: 1.2em;
+    margin-left: 0.5em;
+    font-weight: bold;
+}
+
+.bbab-tf-tree-item-selected .bbab-tf-tree-rule-indicator {
+    color: var(--text-on-accent);
+}
+
+.bbab-tf-rule-path {
+    background: var(--background-secondary);
+    padding: 0.75em;
+    border-radius: 6px;
+    margin-bottom: 1em;
+    font-size: 0.9em;
+    word-break: break-all;
+}
+
+.bbab-tf-parent-rules-warning {
+    background: var(--background-modifier-warning);
+    border: 1px solid var(--text-warning);
+    padding: 0.75em;
+    border-radius: 6px;
+    margin-bottom: 1em;
+    font-size: 0.85em;
+}
+
+.bbab-tf-parent-rules-warning ul {
+    margin: 0.5em 0 0 1.5em;
+    padding: 0;
+}
+
+.bbab-tf-parent-rules-warning li {
+    margin: 0.25em 0;
+}
+
+.bbab-tf-rule-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1em;
+}
+
+.bbab-tf-form-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em;
+}
+
+.bbab-tf-form-section > label {
+    font-weight: 500;
+    font-size: 0.9em;
+}
+
+.bbab-tf-rule-tags-input {
+    width: 100%;
+    padding: 0.5em;
+}
+
+.bbab-tf-apply-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em;
+    padding-left: 0.5em;
+}
+
+.bbab-tf-apply-options label {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    cursor: pointer;
+}
+
+.bbab-tf-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    cursor: pointer;
+}
+
+.bbab-tf-rule-buttons {
+    display: flex;
+    gap: 0.5em;
+    flex-wrap: wrap;
+    margin-top: 0.5em;
+}
+
+.bbab-tf-rule-meta {
+    margin-top: 1em;
+    padding-top: 1em;
+    border-top: 1px solid var(--background-modifier-border);
+    color: var(--text-muted);
+}
+
+.bbab-tf-rule-meta small {
+    display: inline;
+}
+
+.bbab-tf-level-checkboxes {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em;
+    padding: 0.5em;
+    background: var(--background-secondary);
+    border-radius: 6px;
+}
+
+.bbab-tf-level-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    cursor: pointer;
+}
+
+.bbab-tf-level-checkbox input[type="checkbox"] {
+    margin: 0;
+}
+
 .bbab-tf-selection-btns {
     display: flex;
     gap: 0.5em;

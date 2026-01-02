@@ -5,7 +5,7 @@
 
 ---
 
-## Phase 10: Explicit Folder Rules System - PLANNING
+## Phase 10: Explicit Folder Rules System - IN PROGRESS
 
 **ADR:** `docs/ADR-002-FolderRulesSystem.md`
 
@@ -13,13 +13,13 @@
 
 | Order | Feature | Status | Notes |
 |-------|---------|--------|-------|
-| 49 | Add `folderRules` to data model | Planned | `Record<string, FolderRule>` in settings |
-| 50 | Create `getRulesForPath()` function | Planned | Replaces implicit algorithm |
-| 51 | Update file creation watcher | Planned | Use rules instead of algorithm |
-| 52 | Update nuclear option | Planned | Also wipe `folderRules` |
-| 53 | Rules Management Modal | Planned | Folder tree + rule editor |
-| 54 | Bulk Add Modal: "Save as rule" option | Planned | Checkbox + level selection |
-| 55 | Remove legacy `getTagsForPath()` | Planned | Final cleanup |
+| 49 | Add `folderRules` to data model | **Done** | `Record<string, FolderRule>` in settings |
+| 50 | Create `getRulesForPath()` function | **Done** | Replaces implicit algorithm |
+| 51 | Update file creation watcher | **Done** | Use rules instead of algorithm |
+| 52 | Update nuclear option | **Done** | Also wipes `folderRules`, updated warning text |
+| 53 | Rules Management Modal | **Done** | Folder tree + rule editor, accessed from settings |
+| 54 | Bulk Add Modal: "Save as rule" option | **Done** | Checkbox + level selection |
+| 55 | Remove legacy `getTagsForPath()` | Pending | Final cleanup - can keep for compatibility |
 
 **Rule Data Model:**
 ```typescript
@@ -216,6 +216,7 @@ Phase 4 features were absorbed into Phase 3's enhanced preview modal:
 
 | Feature | Notes | Documentation |
 |---------|-------|---------------|
+| Rules Manager: Show folder names next to levels | Display actual folder names next to Level 1, Level 2, etc. in the rule editor | - |
 | Full Tag Management Modal | Dedicated modal to drill into folders/files and add/remove/edit tags granularly | - |
 | Grouped Move Modal Refinement | Improve visual hierarchy, spacing, readability | - |
 | BulkPreviewModal File Tree | Collapsible folder tree instead of flat list | - |

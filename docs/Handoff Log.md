@@ -9,31 +9,34 @@
 
 ---
 
-## Session: January 2, 2025 (Evening) - Folder Rules System Brainstorming
+## Session: January 2, 2025 (Evening) - Folder Rules System IMPLEMENTED
 
 ### Session Summary
 
-Brainstorming session to design an explicit Folder Rules System. During testing, user discovered that bulk-add operations appeared to set "rules" on folders (new files inherited tags), but this was actually just the default algorithm recalculating. This led to unpredictable behavior and no way to manage folder-level tagging configuration.
+Brainstormed and then fully implemented the explicit Folder Rules System. This major feature replaces the implicit folder-name-to-tag algorithm with explicit rules that users configure. Tags are ONLY applied when explicit rules exist.
 
-**Key Decision:** Replace the implicit folder-name-to-tag algorithm with an explicit rules system. Tags are ONLY applied when explicit rules exist. No more "magic."
+**Key Accomplishment:** Complete implementation of Phase 10 (items 49-54).
 
-### What Was Decided
+### What Was Implemented
 
-| Decision | Choice |
-|----------|--------|
-| Rules storage | `data.json` under `folderRules` |
-| Default algorithm | **Removed** - only explicit rules apply tags |
-| Rule behavior | Push-down from parents, additive stacking |
-| Ancestor inheritance | Explicit per-rule (`inheritFromAncestors` boolean) |
-| Nuclear option | Wipes `folderRules` too (update warning text) |
-| Bulk add `inheritDepth` | Stays as bootstrapping tool for new rules |
-| Rules UI | Dedicated modal via button in settings |
+| Feature | Status | Details |
+|---------|--------|---------|
+| `FolderRule` interface | **Done** | Added to main.ts with all properties |
+| `folderRules` in data model | **Done** | Added to TagForgeData, load/save methods |
+| `getRulesForPath()` function | **Done** | New function that evaluates explicit rules |
+| File creation watcher | **Done** | Uses `getRulesForPath()` instead of `getTagsForPath()` |
+| Nuclear option update | **Done** | Now wipes `folderRules`, updated warning messages |
+| Rules Management Modal | **Done** | Full 2-column modal with folder tree + rule editor |
+| Bulk Add "Save as rule" | **Done** | Checkbox + level options in BulkPreviewModal |
+| Settings button | **Done** | "Open Rules Manager" button in Folder Rules section |
+| CSS styles | **Done** | Complete styling for tree, editor, form elements |
 
 ### Rule Data Model
 
 ```typescript
 interface FolderRule {
-  tags: string[];                      // Tags this rule applies
+  tags: string[];                      // Static tags always applied
+  folderTagLevels: number[];           // Dynamic: derive tags from folder levels (1=first, 2=second...)
   applyDownLevels: 'all' | number[];   // 'all' or specific levels [1, 2, 4]
   inheritFromAncestors: boolean;       // Also receive tags from parent rules?
   applyToNewFiles: boolean;            // Trigger on file creation?
@@ -48,46 +51,46 @@ interface FolderRule {
 
 **Additive stacking:** Multiple rules can affect a file. Their tags combine. No "winner takes all."
 
-**Level skipping:** `applyDownLevels: [1, 3, 4]` applies to levels 1, 3, 4 but skips level 2.
+**Explicit only:** No auto-tagging happens without rules. Files in folders without rules get no tags.
 
-### UI Changes Planned
+**Dynamic folder tags:** The `folderTagLevels` field enables the old algorithm behavior. Setting levels 1-5 at a top folder will derive tags from each file's actual folder path, computing the tag from the folder name at each level.
 
-1. **Rules Management Modal** (new)
-   - Accessed via `[Manage Folder Rules]` button in settings
-   - Left panel: Folder tree with rule indicators
-   - Right panel: Rule editor for selected folder
-   - Shows warnings when parent rules also affect folder
+### New UI Features
+
+1. **Rules Management Modal** (`RulesManagementModal`)
+   - Access: Settings → Folder Rules → "Open Rules Manager" button
+   - Left panel: Collapsible folder tree with rule indicators (●)
+   - Right panel: Rule editor with tags, scope, toggles
+   - Features: Create/Update/Delete rules, Apply to existing files, Parent rule warnings
 
 2. **Bulk Add Modal Updates**
-   - Add "Save as folder rule" checkbox
-   - If checked: show level selection (this folder / subfolders / custom)
-   - Clear explanation that this sets a rule, not just one-time operation
+   - New "Folder Rule" section (only for folder-based bulk add)
+   - "Save as folder rule" checkbox
+   - Scope options: "This folder only" / "This folder + all subfolders"
 
-3. **Nuclear Option Update**
-   - Also wipes `folderRules`
-   - Update warning text to mention rule deletion
+3. **Settings Updates**
+   - New "Folder Rules" section between Core Settings and Ignore Paths
+   - Shows rule count, button to open Rules Manager
 
-### Implementation Phases (When Ready)
+4. **Nuclear Option Update**
+   - Now wipes `folderRules` in addition to tags and tracking
+   - Updated warning messages to mention rule deletion
 
-1. Data model & core logic (`getRulesForPath()`)
-2. Rules Management Modal
-3. Bulk Add Modal integration
-4. Remove legacy algorithm, cleanup
+### Files Modified
 
-### Files Created
-
-| File | Purpose |
+| File | Changes |
 |------|---------|
-| docs/ADR-002-FolderRulesSystem.md | Full architecture decision record for rules system |
+| main.ts | FolderRule interface, folderRules data, getRulesForPath(), RulesManagementModal, BulkPreviewModal updates, nuclear option update, settings section |
+| styles.css | Tree styles, rule editor styles, form styles |
+| docs/ADR-002-FolderRulesSystem.md | Architecture decision record |
+| docs/ADR Priority List.md | Updated Phase 10 status |
 
-### Testing Issues That Led to This
+### Key Code Locations
 
-- Nuclear option doesn't reset folder rules (because there weren't any stored)
-- No way to view/manage rules on folders
-- Bulk add doesn't indicate it's setting a rule
-- Special tags don't persist for new files
-- "New rule" didn't stick after remove + re-add (algorithm just recalculated)
-- Need subfolder toggle (apply to this folder vs this + subfolders)
+- `FolderRule` interface: main.ts ~line 49
+- `getRulesForPath()`: main.ts ~line 1493
+- `RulesManagementModal`: main.ts ~line 3729
+- Settings button: main.ts ~line 3140
 
 ---
 
