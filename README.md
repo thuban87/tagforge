@@ -106,6 +106,18 @@ Add tags you manage manually that TagForge should ignore:
 - `favorite`
 - `pinned`
 
+## Important Notes
+
+### File Modified Dates
+
+TagForge modifies file frontmatter to add tags, which updates each file's "modified date" to the time the tags were applied. If you rely on modified dates for sorting or other workflows, be aware that:
+
+- Bulk operations will update the modified date on all affected files
+- Auto-tagging new files is fine (they're new anyway)
+- Moving files with retagging will update modified dates
+
+Consider this before running bulk operations on an existing vault. The first few days/weeks after bulk tagging may cause some confusion if you sort by modified date.
+
 ## Compatibility
 
 - **Obsidian version**: 1.0.0 or higher

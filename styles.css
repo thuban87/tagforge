@@ -355,6 +355,105 @@
 }
 
 /* ============================================================================
+   File Tree Structure (BulkPreviewModal)
+   ============================================================================ */
+
+.bbab-tf-tree-group {
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.bbab-tf-tree-group:last-child {
+    border-bottom: none;
+}
+
+.bbab-tf-tree-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0.85em 1em;
+    background: var(--background-secondary);
+    cursor: pointer;
+    flex-wrap: wrap;
+}
+
+.bbab-tf-tree-header:hover {
+    background: var(--background-secondary-alt);
+}
+
+.bbab-tf-tree-toggle {
+    background: transparent;
+    border: none;
+    padding: 0.2em 0.4em;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 0.8em;
+    flex-shrink: 0;
+}
+
+.bbab-tf-tree-toggle:hover {
+    color: var(--text-normal);
+}
+
+.bbab-tf-tree-folder-name {
+    font-weight: 600;
+    color: var(--text-normal);
+    word-break: break-word;
+}
+
+.bbab-tf-tree-count {
+    color: var(--text-faint);
+    font-size: 0.85em;
+    flex-shrink: 0;
+    margin-left: 0.25em;
+}
+
+.bbab-tf-tree-tags-preview {
+    margin-left: auto;
+    font-size: 0.85em;
+    color: var(--text-muted);
+}
+
+.bbab-tf-tree-files {
+    padding: 0.75em 0;
+    border-left: 2px solid var(--background-modifier-border);
+    margin-left: 1em;
+}
+
+.bbab-tf-tree-file {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75em;
+    padding: 0.75em 1em 0.75em 1.25em;
+    flex-wrap: wrap;
+}
+
+.bbab-tf-tree-file:hover {
+    background: var(--background-secondary-alt);
+}
+
+.bbab-tf-tree-file input[type="checkbox"] {
+    flex-shrink: 0;
+    margin-top: 0.2em;
+}
+
+.bbab-tf-tree-filename {
+    font-weight: 500;
+    color: var(--text-normal);
+    min-width: 150px;
+}
+
+.bbab-tf-tree-file-tags {
+    font-size: 0.85em;
+    color: var(--text-muted);
+    flex: 1;
+}
+
+.bbab-tf-tag-current {
+    color: #808080 !important;
+    opacity: 0.8;
+}
+
+/* ============================================================================
    Folder Aliases (Phase 5)
    ============================================================================ */
 
@@ -566,6 +665,101 @@
     padding: 0.5em 1em;
     border-radius: 4px;
     cursor: pointer;
+}
+
+/* ============================================================================
+   Grouped Move Confirmation Modal (batch folder moves)
+   ============================================================================ */
+
+.bbab-tf-grouped-move-modal {
+    padding: 1.5em;
+    min-width: 450px;
+}
+
+.bbab-tf-grouped-move-modal h2 {
+    margin-top: 0;
+    margin-bottom: 1em;
+}
+
+.bbab-tf-move-summary {
+    margin-bottom: 1em;
+}
+
+.bbab-tf-move-summary p {
+    margin: 0;
+    font-size: 0.95em;
+}
+
+.bbab-tf-grouped-move-list {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    margin-bottom: 1em;
+}
+
+.bbab-tf-move-group {
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.bbab-tf-move-group:last-child {
+    border-bottom: none;
+}
+
+.bbab-tf-move-group-header {
+    padding: 0.85em 1em;
+    background: var(--background-secondary);
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.25em;
+}
+
+.bbab-tf-move-folder-name {
+    color: var(--text-normal);
+    font-weight: 700;
+    font-size: 1.3em;
+    word-break: break-word;
+}
+
+.bbab-tf-move-count {
+    color: var(--text-faint);
+    font-size: 0.9em;
+}
+
+.bbab-tf-move-group-files {
+    padding: 0.5em 0;
+}
+
+.bbab-tf-move-file-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75em;
+    padding: 0.6em 1em 0.6em 1.5em;
+}
+
+.bbab-tf-move-file-item:hover {
+    background: var(--background-secondary-alt);
+}
+
+.bbab-tf-move-file-item input[type="checkbox"] {
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.bbab-tf-move-filename {
+    color: var(--text-normal);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.9em;
+}
+
+.bbab-tf-hint {
+    font-size: 0.85em;
+    color: var(--text-faint);
+    font-style: italic;
+    margin-top: 0.5em;
 }
 
 /* ============================================================================
@@ -1010,6 +1204,7 @@
     .bbab-tf-bulk-preview-modal,
     .bbab-tf-folder-picker-modal,
     .bbab-tf-move-modal,
+    .bbab-tf-grouped-move-modal,
     .bbab-tf-undo-history-modal,
     .bbab-tf-report-modal,
     .bbab-tf-validation-modal {
@@ -1028,8 +1223,20 @@
 
     /* Remove min-width constraints on mobile */
     .bbab-tf-folder-picker-modal,
-    .bbab-tf-move-modal {
+    .bbab-tf-move-modal,
+    .bbab-tf-grouped-move-modal {
         min-width: unset;
+    }
+
+    /* Grouped move modal file items - larger touch targets */
+    .bbab-tf-move-file-item {
+        min-height: 44px;
+        padding: 0.75em 1em 0.75em 1.5em;
+    }
+
+    .bbab-tf-move-group-header {
+        padding: 0.75em 1em;
+        word-break: break-all;
     }
 
     /* ========================================================================
@@ -1155,6 +1362,43 @@
     .bbab-tf-preview-header {
         flex-wrap: wrap;
         gap: 0.75em;
+    }
+
+    /* File tree mobile styles */
+    .bbab-tf-tree-header {
+        padding: 1em;
+        min-height: 48px;
+    }
+
+    .bbab-tf-tree-toggle {
+        min-width: 44px;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .bbab-tf-tree-file {
+        padding: 0.75em 1em;
+        min-height: 48px;
+    }
+
+    .bbab-tf-tree-filename {
+        min-width: unset;
+        flex-basis: 100%;
+        order: 2;
+    }
+
+    .bbab-tf-tree-file-tags {
+        flex-basis: 100%;
+        order: 3;
+        margin-top: 0.25em;
+    }
+
+    .bbab-tf-tree-tags-preview {
+        flex-basis: 100%;
+        margin-left: 0;
+        margin-top: 0.25em;
     }
 
     /* ========================================================================
@@ -1336,6 +1580,7 @@
     .bbab-tf-bulk-preview-modal,
     .bbab-tf-folder-picker-modal,
     .bbab-tf-move-modal,
+    .bbab-tf-grouped-move-modal,
     .bbab-tf-undo-history-modal,
     .bbab-tf-report-modal,
     .bbab-tf-validation-modal {
@@ -1377,7 +1622,10 @@
     .bbab-tf-date-item:hover,
     .bbab-tf-folder-item:hover,
     .bbab-tf-undo-item:hover,
-    .bbab-tf-validation-item:hover {
+    .bbab-tf-validation-item:hover,
+    .bbab-tf-move-file-item:hover,
+    .bbab-tf-tree-header:hover,
+    .bbab-tf-tree-file:hover {
         background: inherit;
         opacity: 1;
     }

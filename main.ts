@@ -1,5 +1,14 @@
 import { App, Plugin, PluginSettingTab, Setting, Notice, TFile, Modal, TFolder } from 'obsidian';
 
+// Windows system files that are safe to delete when cleaning up empty folders
+const WINDOWS_SYSTEM_FILES = new Set(['desktop.ini', 'thumbs.db', '.ds_store']);
+
+// Node.js modules (loaded at runtime in Electron)
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const fs = require('fs') as typeof import('fs');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const nodePath = require('path') as typeof import('path');
+
 // ============================================================================
 // Settings Interface
 // ============================================================================
@@ -91,8 +100,11 @@ export default class TagForgePlugin extends Plugin {
 	tagTracking: Record<string, TagTrackingEntry>;
 	operationHistory: TagOperation[];
 	pendingUndoPath: string | null = null; // Track when we're undoing a move to prevent modal loop
+	pendingUndoPaths: Set<string> = new Set(); // Track multiple undo paths for batch cancel
 	pendingTimeouts: number[] = []; // Track pending timeouts for cleanup
 	pendingFileOps: Map<string, number> = new Map(); // Track pending operations per file for debouncing
+	pendingMoves: Map<string, PendingMoveOperation> = new Map(); // Batch move operations
+	pendingMoveTimeout: number | null = null; // Debounce timer for grouped move modal
 
 	async onload() {
 		// Load settings and tag tracking data
@@ -245,6 +257,12 @@ export default class TagForgePlugin extends Plugin {
 		}
 		this.pendingTimeouts = [];
 		this.pendingFileOps.clear();
+		// Clear pending move batch timeout
+		if (this.pendingMoveTimeout) {
+			window.clearTimeout(this.pendingMoveTimeout);
+			this.pendingMoveTimeout = null;
+		}
+		this.pendingMoves.clear();
 	}
 
 	// -------------------------------------------------------------------------
@@ -355,6 +373,12 @@ export default class TagForgePlugin extends Plugin {
 			return;
 		}
 
+		// Check if this is a batch undo move
+		if (this.pendingUndoPaths.has(file.path)) {
+			this.pendingUndoPaths.delete(file.path);
+			return;
+		}
+
 		// Check if this is a move (folder changed) vs just a rename
 		const oldFolder = this.getParentFolder(oldPath);
 		const newFolder = this.getParentFolder(file.path);
@@ -422,16 +446,277 @@ export default class TagForgePlugin extends Plugin {
 			return;
 		}
 
-		// Show confirmation modal
-		new MoveConfirmationModal(
-			this.app,
-			file.name,
+		// Queue this move for batch processing
+		this.pendingMoves.set(file.path, {
+			file,
+			oldPath,
 			oldFolder,
 			newFolder,
-			async (result) => {
-				await this.handleMoveResult(file, oldPath, result);
+		});
+
+		// Clear existing timeout and set a new one (debounce 300ms)
+		if (this.pendingMoveTimeout) {
+			window.clearTimeout(this.pendingMoveTimeout);
+		}
+
+		this.pendingMoveTimeout = window.setTimeout(() => {
+			this.pendingMoveTimeout = null;
+			this.showBatchedMoveModal();
+		}, 300);
+	}
+
+	showBatchedMoveModal() {
+		const moves = Array.from(this.pendingMoves.values());
+		this.pendingMoves.clear();
+
+		if (moves.length === 0) {
+			return;
+		}
+
+		if (moves.length === 1) {
+			// Just one file - use the simpler single-file modal
+			const move = moves[0];
+			new MoveConfirmationModal(
+				this.app,
+				move.file.name,
+				move.oldFolder,
+				move.newFolder,
+				async (result) => {
+					await this.handleMoveResult(move.file, move.oldPath, result);
+				}
+			).open();
+		} else {
+			// Multiple files - use grouped modal
+			new GroupedMoveConfirmationModal(
+				this.app,
+				moves,
+				async (result) => {
+					await this.handleGroupedMoveResult(moves, result);
+				}
+			).open();
+		}
+	}
+
+	async handleGroupedMoveResult(moves: PendingMoveOperation[], result: GroupedMoveResult) {
+		// Save remembered choice if applicable
+		if (result.remember && (result.action === 'continue' || result.action === 'leave')) {
+			this.settings.rememberedMoveAction = result.action;
+			await this.saveSettings();
+			new Notice(`TagForge: Will remember "${result.action === 'continue' ? 'Continue' : 'Leave Tags'}" for future moves`);
+		}
+
+		// Filter out excluded files
+		const filesToProcess = moves.filter(m => !result.excludedPaths.has(m.file.path));
+		const excludedFiles = moves.filter(m => result.excludedPaths.has(m.file.path));
+
+		// Handle excluded files - just update tracking keys (leave tags alone)
+		for (const move of excludedFiles) {
+			if (this.tagTracking[move.oldPath]) {
+				this.tagTracking[move.file.path] = this.tagTracking[move.oldPath];
+				delete this.tagTracking[move.oldPath];
 			}
-		).open();
+		}
+
+		if (filesToProcess.length === 0) {
+			await this.saveSettings();
+			new Notice('All files excluded - tags left unchanged');
+			return;
+		}
+
+		switch (result.action) {
+			case 'continue':
+				let retagged = 0;
+				for (const move of filesToProcess) {
+					await this.applyMoveRetag(move.file, move.oldPath);
+					retagged++;
+				}
+				new Notice(`Retagged ${retagged} files`);
+				break;
+
+			case 'leave':
+				for (const move of filesToProcess) {
+					if (this.tagTracking[move.oldPath]) {
+						this.tagTracking[move.file.path] = this.tagTracking[move.oldPath];
+						delete this.tagTracking[move.oldPath];
+					}
+				}
+				await this.saveSettings();
+				new Notice(`Left tags unchanged for ${filesToProcess.length} files`);
+				break;
+
+			case 'cancel':
+				// Move all files back to original locations
+				let restored = 0;
+				let failed = 0;
+
+				// First, ensure all original folders exist
+				const foldersToCreate = new Set<string>();
+				for (const move of filesToProcess) {
+					if (move.oldFolder) {
+						foldersToCreate.add(move.oldFolder);
+					}
+				}
+
+				// Create missing folders
+				for (const folderPath of foldersToCreate) {
+					const existingFolder = this.app.vault.getAbstractFileByPath(folderPath);
+					if (!existingFolder) {
+						try {
+							await this.app.vault.createFolder(folderPath);
+						} catch (e) {
+							// Folder might already exist or parent needs creating
+							// Try creating parent folders one by one
+							const parts = folderPath.split('/');
+							let currentPath = '';
+							for (const part of parts) {
+								currentPath = currentPath ? `${currentPath}/${part}` : part;
+								const exists = this.app.vault.getAbstractFileByPath(currentPath);
+								if (!exists) {
+									try {
+										await this.app.vault.createFolder(currentPath);
+									} catch (innerE) {
+										// Ignore - might already exist
+									}
+								}
+							}
+						}
+					}
+				}
+
+				// Pre-register all paths to prevent feedback loop
+				for (const move of filesToProcess) {
+					this.pendingUndoPaths.add(move.oldPath);
+				}
+
+				// Collect destination folders to clean up later (including all subfolders)
+				const destFoldersToCleanup = new Set<string>();
+				for (const move of filesToProcess) {
+					if (move.newFolder) {
+						// Add this folder and all parent folders up to the moved folder root
+						destFoldersToCleanup.add(move.newFolder);
+
+						// Also recursively find any subfolders that might exist
+						const folder = this.app.vault.getAbstractFileByPath(move.newFolder);
+						if (folder && folder instanceof TFolder) {
+							const collectSubfolders = (f: TFolder) => {
+								for (const child of f.children) {
+									if (child instanceof TFolder) {
+										destFoldersToCleanup.add(child.path);
+										collectSubfolders(child);
+									}
+								}
+							};
+							collectSubfolders(folder);
+						}
+					}
+				}
+
+				// Now move files back
+				for (const move of filesToProcess) {
+					try {
+						await this.app.vault.rename(move.file, move.oldPath);
+						restored++;
+					} catch (e) {
+						console.error('TagForge: Failed to restore file', e);
+						this.pendingUndoPaths.delete(move.oldPath); // Remove from tracking if failed
+						failed++;
+					}
+				}
+
+				// Clean up empty destination folders after a delay (let filesystem sync, especially for cloud drives)
+				setTimeout(async () => {
+					// Get vault base path for filesystem operations
+					const vaultBasePath = (this.app.vault.adapter as any).basePath as string;
+
+					// Helper to clean Windows system files from a folder
+					const cleanSystemFiles = (folderPath: string): boolean => {
+						try {
+							const fullPath = nodePath.join(vaultBasePath, folderPath);
+							if (!fs.existsSync(fullPath)) return false;
+
+							const entries = fs.readdirSync(fullPath);
+							// Check if folder only contains system files
+							const hasOnlySystemFiles = entries.every((entry: string) =>
+								WINDOWS_SYSTEM_FILES.has(entry.toLowerCase())
+							);
+
+							if (hasOnlySystemFiles && entries.length > 0) {
+								// Delete each system file
+								for (const entry of entries) {
+									try {
+										fs.unlinkSync(nodePath.join(fullPath, entry));
+									} catch (e) {
+										// Ignore errors - file might be locked
+									}
+								}
+								return true;
+							}
+							return entries.length === 0;
+						} catch (e) {
+							return false;
+						}
+					};
+
+					// Helper to delete a folder with retries for ENOTEMPTY race conditions
+					const tryDeleteFolder = async (folderPath: string, retries = 3): Promise<boolean> => {
+						for (let attempt = 0; attempt < retries; attempt++) {
+							try {
+								// First, clean any Windows system files
+								cleanSystemFiles(folderPath);
+
+								const folder = this.app.vault.getAbstractFileByPath(folderPath);
+								if (folder && folder instanceof TFolder && folder.children.length === 0) {
+									await this.app.vault.delete(folder);
+									return true;
+								}
+								return false; // Not empty or doesn't exist
+							} catch (e: unknown) {
+								// Retry on ENOTEMPTY (filesystem sync delay)
+								if (e instanceof Error && e.message.includes('ENOTEMPTY') && attempt < retries - 1) {
+									// Try cleaning system files again before retry
+									cleanSystemFiles(folderPath);
+									await new Promise(r => setTimeout(r, 300)); // Wait 300ms before retry
+									continue;
+								}
+								return false;
+							}
+						}
+						return false;
+					};
+
+					// Recursively delete empty folders - keep trying until no more can be deleted
+					let totalDeleted = 0;
+					let deletedThisRound = 0;
+					let maxRounds = 10;
+
+					do {
+						deletedThisRound = 0;
+						// Sort by path length (deepest first) to delete children before parents
+						const sortedFolders = Array.from(destFoldersToCleanup).sort((a, b) => b.length - a.length);
+
+						for (const folderPath of sortedFolders) {
+							if (await tryDeleteFolder(folderPath)) {
+								destFoldersToCleanup.delete(folderPath);
+								deletedThisRound++;
+								totalDeleted++;
+							}
+						}
+						maxRounds--;
+					} while (deletedThisRound > 0 && maxRounds > 0);
+
+					if (totalDeleted > 0) {
+						new Notice(`Cleaned up ${totalDeleted} empty folder${totalDeleted > 1 ? 's' : ''}`);
+					}
+				}, 500);
+
+				// Clear any remaining paths after a short delay (in case events are delayed)
+				setTimeout(() => {
+					this.pendingUndoPaths.clear();
+				}, 1000);
+
+				new Notice(`Restored ${restored} files${failed > 0 ? `, ${failed} failed` : ''}`);
+				break;
+		}
 	}
 
 	async handleMoveResult(file: TFile, oldPath: string, result: MoveConfirmationResult) {
@@ -1422,6 +1707,7 @@ class BulkPreviewModal extends Modal {
 	additionalTags: string[] = [];
 	additionalTagsToSelectedOnly: boolean = false;
 	maxLevel: number = 0;
+	expandedFolders: Set<string> = new Set(); // Track which folder groups are expanded
 
 	// UI references for updates
 	listEl: HTMLElement | null = null;
@@ -1599,66 +1885,157 @@ class BulkPreviewModal extends Modal {
 
 		let filesWithChanges = 0;
 
+		// Group items by parent folder
+		const folderGroups = new Map<string, EnhancedPreviewItem[]>();
 		for (const item of this.items) {
-			const isSelected = this.selectedFiles.has(item.file.path);
-			const folderTags = this.computeFolderTags(item);
-			const additionalTags = this.getAdditionalTagsForFile(item);
-			const allNewTags = [...new Set([...folderTags, ...additionalTags])];
-			const tagsToAdd = allNewTags.filter(t => !item.currentTags.includes(t));
+			const folderPath = this.getParentFolder(item.file.path);
+			if (!folderGroups.has(folderPath)) {
+				folderGroups.set(folderPath, []);
+			}
+			folderGroups.get(folderPath)!.push(item);
+		}
 
-			if (tagsToAdd.length > 0) filesWithChanges++;
+		// Sort folders alphabetically
+		const sortedFolders = Array.from(folderGroups.keys()).sort();
 
-			const itemEl = this.listEl.createDiv({ cls: 'bbab-tf-preview-item' });
+		for (const folderPath of sortedFolders) {
+			const folderItems = folderGroups.get(folderPath)!;
+			const isExpanded = this.expandedFolders.has(folderPath);
 
-			// Checkbox + path row
-			const headerRow = itemEl.createDiv({ cls: 'bbab-tf-preview-header' });
-			const checkbox = headerRow.createEl('input', { type: 'checkbox' });
-			checkbox.checked = isSelected;
-			checkbox.addEventListener('change', () => {
-				if (checkbox.checked) {
-					this.selectedFiles.add(item.file.path);
+			// Count files with changes and selected files in this folder
+			let folderChanges = 0;
+			let folderSelected = 0;
+			const folderTagsPreview: string[] = [];
+
+			for (const item of folderItems) {
+				const folderTags = this.computeFolderTags(item);
+				const additionalTags = this.getAdditionalTagsForFile(item);
+				const allNewTags = [...new Set([...folderTags, ...additionalTags])];
+				const tagsToAdd = allNewTags.filter(t => !item.currentTags.includes(t));
+				if (tagsToAdd.length > 0) {
+					folderChanges++;
+					filesWithChanges++;
+				}
+				if (this.selectedFiles.has(item.file.path)) {
+					folderSelected++;
+				}
+				// Collect unique tags for this folder (from first file as example)
+				if (folderTagsPreview.length === 0 && folderTags.length > 0) {
+					folderTagsPreview.push(...folderTags);
+				}
+			}
+
+			// Folder group container
+			const groupEl = this.listEl.createDiv({ cls: 'bbab-tf-tree-group' });
+
+			// Folder header (clickable to expand/collapse)
+			const headerEl = groupEl.createDiv({ cls: 'bbab-tf-tree-header' });
+
+			// Expand/collapse toggle
+			const toggleBtn = headerEl.createEl('button', {
+				cls: 'bbab-tf-tree-toggle',
+				text: isExpanded ? '▼' : '▶',
+			});
+			toggleBtn.addEventListener('click', (e) => {
+				e.stopPropagation();
+				if (this.expandedFolders.has(folderPath)) {
+					this.expandedFolders.delete(folderPath);
 				} else {
-					this.selectedFiles.delete(item.file.path);
+					this.expandedFolders.add(folderPath);
 				}
 				this.renderList();
 			});
 
-			headerRow.createSpan({ text: item.file.path, cls: 'bbab-tf-preview-path' });
+			// Folder name
+			const folderName = folderPath || '(vault root)';
+			headerEl.createSpan({ text: folderName, cls: 'bbab-tf-tree-folder-name' });
 
-			// Tags display
-			const tagsEl = itemEl.createDiv({ cls: 'bbab-tf-preview-tags' });
+			// File count badge
+			headerEl.createSpan({
+				text: ` — ${folderItems.length} file${folderItems.length > 1 ? 's' : ''}`,
+				cls: 'bbab-tf-tree-count',
+			});
 
-			if (item.currentTags.length > 0) {
-				tagsEl.createSpan({ text: 'Current: ', cls: 'bbab-tf-tag-label' });
-				tagsEl.createSpan({ text: item.currentTags.map(t => '#' + t).join(' ') });
-				tagsEl.createEl('br');
+			// Tags preview on folder header
+			if (folderTagsPreview.length > 0 && !isExpanded) {
+				const tagsPreview = headerEl.createSpan({ cls: 'bbab-tf-tree-tags-preview' });
+				tagsPreview.createSpan({ text: '→ ' });
+				tagsPreview.createSpan({
+					text: folderTagsPreview.map(t => '#' + t).join(' '),
+					cls: 'bbab-tf-tag-add',
+				});
 			}
 
-			if (tagsToAdd.length > 0) {
-				tagsEl.createSpan({ text: 'Adding: ', cls: 'bbab-tf-tag-label' });
+			// Files container (only rendered if expanded)
+			if (isExpanded) {
+				const filesEl = groupEl.createDiv({ cls: 'bbab-tf-tree-files' });
 
-				// Show folder tags
-				if (folderTags.length > 0) {
-					const newFolderTags = folderTags.filter(t => !item.currentTags.includes(t));
-					if (newFolderTags.length > 0) {
+				for (const item of folderItems) {
+					const isSelected = this.selectedFiles.has(item.file.path);
+					const folderTags = this.computeFolderTags(item);
+					const additionalTags = this.getAdditionalTagsForFile(item);
+					const allNewTags = [...new Set([...folderTags, ...additionalTags])];
+					const tagsToAdd = allNewTags.filter(t => !item.currentTags.includes(t));
+
+					const itemEl = filesEl.createDiv({ cls: 'bbab-tf-tree-file' });
+
+					// Checkbox
+					const checkbox = itemEl.createEl('input', { type: 'checkbox' });
+					checkbox.checked = isSelected;
+					checkbox.addEventListener('change', () => {
+						if (checkbox.checked) {
+							this.selectedFiles.add(item.file.path);
+						} else {
+							this.selectedFiles.delete(item.file.path);
+						}
+						this.renderList();
+					});
+
+					// File name (not full path)
+					itemEl.createSpan({ text: item.file.name, cls: 'bbab-tf-tree-filename' });
+
+					// Tags display
+					const tagsEl = itemEl.createDiv({ cls: 'bbab-tf-tree-file-tags' });
+
+					if (item.currentTags.length > 0) {
+						tagsEl.createSpan({ text: 'Has: ', cls: 'bbab-tf-tag-label' });
 						tagsEl.createSpan({
-							text: newFolderTags.map(t => '#' + t).join(' '),
-							cls: 'bbab-tf-tag-add',
+							text: item.currentTags.map(t => '#' + t).join(' '),
+							cls: 'bbab-tf-tag-current',
 						});
 					}
-				}
 
-				// Show additional tags
-				const newAdditionalTags = additionalTags.filter(t => !item.currentTags.includes(t) && !folderTags.includes(t));
-				if (newAdditionalTags.length > 0) {
-					if (folderTags.length > 0) tagsEl.createSpan({ text: ' ' });
-					tagsEl.createSpan({
-						text: newAdditionalTags.map(t => '#' + t).join(' '),
-						cls: 'bbab-tf-tag-additional',
-					});
+					// Only show "Adding:" if the file is selected (checked)
+					if (isSelected && tagsToAdd.length > 0) {
+						if (item.currentTags.length > 0) tagsEl.createSpan({ text: ' ' });
+						tagsEl.createSpan({ text: 'Adding: ', cls: 'bbab-tf-tag-label' });
+
+						// Show folder tags
+						const newFolderTags = folderTags.filter(t => !item.currentTags.includes(t));
+						if (newFolderTags.length > 0) {
+							tagsEl.createSpan({
+								text: newFolderTags.map(t => '#' + t).join(' '),
+								cls: 'bbab-tf-tag-add',
+							});
+						}
+
+						// Show additional tags
+						const newAdditionalTags = additionalTags.filter(t => !item.currentTags.includes(t) && !folderTags.includes(t));
+						if (newAdditionalTags.length > 0) {
+							if (newFolderTags.length > 0) tagsEl.createSpan({ text: ' ' });
+							tagsEl.createSpan({
+								text: newAdditionalTags.map(t => '#' + t).join(' '),
+								cls: 'bbab-tf-tag-additional',
+							});
+						}
+					} else if (!isSelected && tagsToAdd.length > 0) {
+						// Show indicator that file is excluded
+						if (item.currentTags.length > 0) tagsEl.createSpan({ text: ' ' });
+						tagsEl.createSpan({ text: '(excluded)', cls: 'bbab-tf-no-changes' });
+					} else if (item.currentTags.length === 0 && tagsToAdd.length === 0) {
+						tagsEl.createSpan({ text: '(no changes)', cls: 'bbab-tf-no-changes' });
+					}
 				}
-			} else {
-				tagsEl.createSpan({ text: '(no changes)', cls: 'bbab-tf-no-changes' });
 			}
 		}
 
@@ -1676,6 +2053,12 @@ class BulkPreviewModal extends Modal {
 
 		// Restore scroll position
 		this.listEl.scrollTop = scrollTop;
+	}
+
+	getParentFolder(filePath: string): string {
+		const parts = filePath.split(/[/\\]/);
+		parts.pop(); // Remove filename
+		return parts.join('/');
 	}
 
 	computeFolderTags(item: EnhancedPreviewItem): string[] {
@@ -1701,6 +2084,11 @@ class BulkPreviewModal extends Modal {
 		const results: Array<{ file: TFile; tags: string[] }> = [];
 
 		for (const item of this.items) {
+			// Only process files that are selected (checked)
+			if (!this.selectedFiles.has(item.file.path)) {
+				continue;
+			}
+
 			const folderTags = this.computeFolderTags(item);
 			const additionalTags = this.getAdditionalTagsForFile(item);
 			const allNewTags = [...new Set([...folderTags, ...additionalTags])];
@@ -1918,6 +2306,19 @@ interface MoveConfirmationResult {
 	remember: boolean;
 }
 
+interface PendingMoveOperation {
+	file: TFile;
+	oldPath: string;
+	oldFolder: string;
+	newFolder: string;
+}
+
+interface GroupedMoveResult {
+	action: 'continue' | 'leave' | 'cancel';
+	excludedPaths: Set<string>;  // Files to skip (user unchecked them)
+	remember: boolean;
+}
+
 class MoveConfirmationModal extends Modal {
 	fileName: string;
 	oldFolder: string;
@@ -2004,6 +2405,175 @@ class MoveConfirmationModal extends Modal {
 	onClose() {
 		const { contentEl } = this;
 		contentEl.empty();
+	}
+}
+
+// ============================================================================
+// Grouped Move Confirmation Modal (for batch folder moves)
+// ============================================================================
+
+class GroupedMoveConfirmationModal extends Modal {
+	moves: PendingMoveOperation[];
+	onResult: (result: GroupedMoveResult) => void;
+	excludedPaths: Set<string> = new Set();
+	rememberChoice: boolean = false;
+	resultSent: boolean = false; // Track if user clicked a button
+
+	constructor(
+		app: App,
+		moves: PendingMoveOperation[],
+		onResult: (result: GroupedMoveResult) => void
+	) {
+		super(app);
+		this.moves = moves;
+		this.onResult = onResult;
+	}
+
+	onOpen() {
+		const { contentEl } = this;
+		contentEl.empty();
+		contentEl.addClass('bbab-tf-grouped-move-modal');
+
+		contentEl.createEl('h2', { text: 'Multiple Files Moved' });
+
+		// Summary
+		const summaryEl = contentEl.createDiv({ cls: 'bbab-tf-move-summary' });
+		summaryEl.createEl('p', {
+			text: `${this.moves.length} files are being moved. Choose how to handle their tags:`,
+		});
+
+		// Group moves by destination folder for cleaner display
+		const folderGroups = new Map<string, PendingMoveOperation[]>();
+		for (const move of this.moves) {
+			const destFolder = move.newFolder || '(vault root)';
+			if (!folderGroups.has(destFolder)) {
+				folderGroups.set(destFolder, []);
+			}
+			folderGroups.get(destFolder)!.push(move);
+		}
+
+		// File list with checkboxes
+		const listContainer = contentEl.createDiv({ cls: 'bbab-tf-grouped-move-list' });
+
+		for (const [destFolder, groupMoves] of folderGroups) {
+			// Folder group header - just show destination folder
+			const groupEl = listContainer.createDiv({ cls: 'bbab-tf-move-group' });
+			const groupHeader = groupEl.createDiv({ cls: 'bbab-tf-move-group-header' });
+
+			groupHeader.createSpan({ text: destFolder, cls: 'bbab-tf-move-folder-name' });
+			groupHeader.createSpan({ text: ` — ${groupMoves.length} file${groupMoves.length > 1 ? 's' : ''}`, cls: 'bbab-tf-move-count' });
+
+			// Files in this group
+			const filesEl = groupEl.createDiv({ cls: 'bbab-tf-move-group-files' });
+			for (const move of groupMoves) {
+				const fileEl = filesEl.createDiv({ cls: 'bbab-tf-move-file-item' });
+				const checkbox = fileEl.createEl('input', { type: 'checkbox' });
+				checkbox.checked = true;
+				checkbox.addEventListener('change', () => {
+					if (checkbox.checked) {
+						this.excludedPaths.delete(move.file.path);
+					} else {
+						this.excludedPaths.add(move.file.path);
+					}
+					this.updateButtonText();
+				});
+				fileEl.createSpan({ text: move.file.name, cls: 'bbab-tf-move-filename' });
+			}
+		}
+
+		// Explanation
+		const descEl = contentEl.createDiv({ cls: 'bbab-tf-move-description' });
+		descEl.createEl('p', { text: 'Choose an action for checked files:' });
+		const optionsList = descEl.createEl('ul', { cls: 'bbab-tf-move-options' });
+		optionsList.createEl('li', { text: 'Continue — Remove old folder tags, apply new folder tags' });
+		optionsList.createEl('li', { text: 'Leave Tags — Keep current tags as-is' });
+		optionsList.createEl('li', { text: 'Cancel — Move files back to original folders' });
+		descEl.createEl('p', {
+			text: 'Unchecked files: kept their current tags, no changes made.',
+			cls: 'bbab-tf-hint',
+		});
+
+		// Remember choice checkbox
+		const rememberLabel = contentEl.createEl('label', { cls: 'bbab-tf-remember-choice' });
+		const rememberCb = rememberLabel.createEl('input', { type: 'checkbox' });
+		rememberLabel.createSpan({ text: ' Remember my choice for future moves' });
+		rememberCb.addEventListener('change', () => {
+			this.rememberChoice = rememberCb.checked;
+		});
+
+		// Buttons
+		const buttonContainer = contentEl.createDiv({ cls: 'bbab-tf-move-buttons' });
+
+		const continueBtn = buttonContainer.createEl('button', {
+			cls: 'mod-cta bbab-tf-grouped-continue-btn',
+		});
+		continueBtn.textContent = `Continue (${this.moves.length} files)`;
+		continueBtn.addEventListener('click', () => {
+			this.resultSent = true;
+			this.close();
+			this.onResult({
+				action: 'continue',
+				excludedPaths: new Set(this.excludedPaths),
+				remember: this.rememberChoice,
+			});
+		});
+
+		const leaveBtn = buttonContainer.createEl('button', {
+			cls: 'bbab-tf-grouped-leave-btn',
+		});
+		leaveBtn.textContent = `Leave Tags (${this.moves.length} files)`;
+		leaveBtn.addEventListener('click', () => {
+			this.resultSent = true;
+			this.close();
+			this.onResult({
+				action: 'leave',
+				excludedPaths: new Set(this.excludedPaths),
+				remember: this.rememberChoice,
+			});
+		});
+
+		const cancelBtn = buttonContainer.createEl('button', {
+			text: 'Cancel (Undo Moves)',
+			cls: 'mod-warning bbab-tf-grouped-cancel-btn',
+		});
+		cancelBtn.addEventListener('click', () => {
+			this.resultSent = true;
+			this.close();
+			this.onResult({
+				action: 'cancel',
+				excludedPaths: new Set(this.excludedPaths),
+				remember: false,
+			});
+		});
+	}
+
+	updateButtonText() {
+		const activeCount = this.moves.length - this.excludedPaths.size;
+		const continueBtn = this.contentEl.querySelector('.bbab-tf-grouped-continue-btn');
+		const leaveBtn = this.contentEl.querySelector('.bbab-tf-grouped-leave-btn');
+		if (continueBtn) {
+			continueBtn.textContent = `Continue (${activeCount} files)`;
+		}
+		if (leaveBtn) {
+			leaveBtn.textContent = `Leave Tags (${activeCount} files)`;
+		}
+	}
+
+	onClose() {
+		const { contentEl } = this;
+		contentEl.empty();
+
+		// If closed without clicking a button (X or Escape), default to Cancel (undo moves)
+		// Use setTimeout to defer callback until after modal is fully closed (matches Cancel button behavior)
+		if (!this.resultSent) {
+			setTimeout(() => {
+				this.onResult({
+					action: 'cancel',
+					excludedPaths: new Set(this.excludedPaths),
+					remember: false,
+				});
+			}, 0);
+		}
 	}
 }
 
