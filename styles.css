@@ -94,6 +94,137 @@
 }
 
 /* ============================================================================
+   Large Modal Base - Settings Window Sized
+   ============================================================================ */
+
+.bbab-tf-large-modal {
+    width: 90vw !important;
+    max-width: 900px !important;
+    height: 80vh !important;
+    max-height: 80vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+.bbab-tf-large-modal .modal-close-button {
+    top: 12px;
+    right: 12px;
+}
+
+/* Modal content containers - fill available height */
+.bbab-tf-large-modal .bbab-tf-bulk-preview-modal,
+.bbab-tf-large-modal .bbab-tf-folder-picker-modal,
+.bbab-tf-large-modal .bbab-tf-date-picker-modal,
+.bbab-tf-large-modal .bbab-tf-move-modal,
+.bbab-tf-large-modal .bbab-tf-grouped-move-modal,
+.bbab-tf-large-modal .bbab-tf-undo-history-modal,
+.bbab-tf-large-modal .bbab-tf-report-modal,
+.bbab-tf-large-modal .bbab-tf-validation-modal {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    padding: 1.5em;
+}
+
+/* Scrollable list areas - expand to fill space */
+.bbab-tf-large-modal .bbab-tf-preview,
+.bbab-tf-large-modal .bbab-tf-folder-list,
+.bbab-tf-large-modal .bbab-tf-date-list,
+.bbab-tf-large-modal .bbab-tf-grouped-move-list,
+.bbab-tf-large-modal .bbab-tf-undo-list,
+.bbab-tf-large-modal .bbab-tf-report-tag-list,
+.bbab-tf-large-modal .bbab-tf-validation-list {
+    flex: 1;
+    max-height: none;
+    min-height: 200px;
+}
+
+/* ============================================================================
+   Two-Column Layout (BulkPreviewModal)
+   ============================================================================ */
+
+.bbab-tf-modal-header {
+    flex-shrink: 0;
+    margin-bottom: 1em;
+}
+
+.bbab-tf-modal-header h2 {
+    margin: 0 0 0.25em 0;
+}
+
+.bbab-tf-columns {
+    display: flex;
+    gap: 1.5em;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.bbab-tf-column-left {
+    flex: 2;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+}
+
+.bbab-tf-column-right {
+    flex: 1;
+    min-width: 220px;
+    max-width: 280px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.bbab-tf-files-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1em;
+    flex-shrink: 0;
+    margin-bottom: 0.5em;
+    flex-wrap: wrap;
+}
+
+.bbab-tf-files-header h3 {
+    margin: 0;
+}
+
+.bbab-tf-column-left .bbab-tf-preview {
+    flex: 1;
+    overflow-y: auto;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+}
+
+.bbab-tf-column-right .bbab-tf-section {
+    margin-bottom: 1.5em;
+}
+
+.bbab-tf-column-right .bbab-tf-section h3 {
+    margin: 0 0 0.75em 0;
+    font-size: 0.95em;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding-bottom: 0.25em;
+}
+
+.bbab-tf-column-right .bbab-tf-level-toggles {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5em;
+}
+
+.bbab-tf-column-right .bbab-tf-apply-to {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5em;
+    margin-top: 0.75em;
+}
+
+/* ============================================================================
    Future: Modal Styles (Phase 6 - Move Confirmation)
    ============================================================================ */
 
@@ -1196,6 +1327,18 @@
 @media screen and (max-width: 600px) {
 
     /* ========================================================================
+       Large Modal - Full Screen on Mobile
+       ======================================================================== */
+
+    .bbab-tf-large-modal {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 100% !important;
+        max-height: 100% !important;
+        border-radius: 0 !important;
+    }
+
+    /* ========================================================================
        Modal Base Styles - Full Width on Mobile
        ======================================================================== */
 
@@ -1212,6 +1355,33 @@
         width: 100%;
         max-width: 100%;
         box-sizing: border-box;
+    }
+
+    /* ========================================================================
+       Two-Column Layout - Stack on Mobile
+       ======================================================================== */
+
+    .bbab-tf-columns {
+        flex-direction: column;
+        gap: 1em;
+        overflow-y: auto;
+    }
+
+    .bbab-tf-column-left {
+        flex: none;
+        max-height: 50vh;
+    }
+
+    .bbab-tf-column-right {
+        flex: none;
+        max-width: none;
+        min-width: unset;
+    }
+
+    .bbab-tf-files-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5em;
     }
 
     /* Override modal content sizing */

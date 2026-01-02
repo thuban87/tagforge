@@ -1743,16 +1743,49 @@ class BulkPreviewModal extends Modal {
 	onOpen() {
 		const { contentEl } = this;
 		contentEl.empty();
+		this.modalEl.addClass('bbab-tf-large-modal');
 		contentEl.addClass('bbab-tf-bulk-preview-modal');
 
-		contentEl.createEl('h2', { text: 'Preview: Bulk Tag Application' });
-		contentEl.createEl('p', {
+		// Header
+		const header = contentEl.createDiv({ cls: 'bbab-tf-modal-header' });
+		header.createEl('h2', { text: 'Preview: Bulk Tag Application' });
+		header.createEl('p', {
 			text: `Configuring tags for ${this.items.length} files in ${this.targetDescription}`,
 			cls: 'bbab-tf-description',
 		});
 
+		// Two-column layout container
+		const columnsContainer = contentEl.createDiv({ cls: 'bbab-tf-columns' });
+
+		// LEFT COLUMN - File Tree
+		const leftColumn = columnsContainer.createDiv({ cls: 'bbab-tf-column-left' });
+
+		// Files header with stats and selection buttons
+		const filesHeader = leftColumn.createDiv({ cls: 'bbab-tf-files-header' });
+		this.statsEl = filesHeader.createEl('h3', { text: 'Files' });
+
+		const selectionBtns = filesHeader.createDiv({ cls: 'bbab-tf-selection-btns' });
+		const selectAllBtn = selectionBtns.createEl('button', { text: 'Select All' });
+		selectAllBtn.addEventListener('click', () => {
+			this.items.forEach(item => this.selectedFiles.add(item.file.path));
+			this.renderList();
+		});
+
+		const selectNoneBtn = selectionBtns.createEl('button', { text: 'Select None' });
+		selectNoneBtn.addEventListener('click', () => {
+			this.selectedFiles.clear();
+			this.renderList();
+		});
+
+		// File list (scrollable)
+		this.listEl = leftColumn.createDiv({ cls: 'bbab-tf-preview' });
+		this.renderList();
+
+		// RIGHT COLUMN - Controls
+		const rightColumn = columnsContainer.createDiv({ cls: 'bbab-tf-column-right' });
+
 		// Folder Tags Section
-		const folderSection = contentEl.createDiv({ cls: 'bbab-tf-section' });
+		const folderSection = rightColumn.createDiv({ cls: 'bbab-tf-section' });
 		folderSection.createEl('h3', { text: 'Folder Tags' });
 
 		const levelContainer = folderSection.createDiv({ cls: 'bbab-tf-level-toggles' });
@@ -1792,12 +1825,12 @@ class BulkPreviewModal extends Modal {
 		});
 
 		// Additional Tags Section
-		const additionalSection = contentEl.createDiv({ cls: 'bbab-tf-section' });
+		const additionalSection = rightColumn.createDiv({ cls: 'bbab-tf-section' });
 		additionalSection.createEl('h3', { text: 'Additional Tags' });
 
 		const additionalInput = additionalSection.createEl('input', {
 			type: 'text',
-			placeholder: 'Enter tags separated by commas (e.g., tinder, dating-app)',
+			placeholder: 'Tags separated by commas',
 			cls: 'bbab-tf-additional-input',
 		});
 		additionalInput.addEventListener('input', () => {
@@ -1810,7 +1843,6 @@ class BulkPreviewModal extends Modal {
 
 		// Apply to all/selected radio
 		const applyToContainer = additionalSection.createDiv({ cls: 'bbab-tf-apply-to' });
-		applyToContainer.createSpan({ text: 'Apply additional tags to: ' });
 
 		const allLabel = applyToContainer.createEl('label');
 		const allRadio = allLabel.createEl('input', { type: 'radio', attr: { name: 'applyTo' } });
@@ -1829,28 +1861,6 @@ class BulkPreviewModal extends Modal {
 			this.additionalTagsToSelectedOnly = true;
 			this.renderList();
 		});
-
-		// Files Section
-		const filesSection = contentEl.createDiv({ cls: 'bbab-tf-section' });
-		this.statsEl = filesSection.createEl('h3', { text: 'Files' });
-
-		// Select all/none buttons
-		const selectionBtns = filesSection.createDiv({ cls: 'bbab-tf-selection-btns' });
-		const selectAllBtn = selectionBtns.createEl('button', { text: 'Select All' });
-		selectAllBtn.addEventListener('click', () => {
-			this.items.forEach(item => this.selectedFiles.add(item.file.path));
-			this.renderList();
-		});
-
-		const selectNoneBtn = selectionBtns.createEl('button', { text: 'Select None' });
-		selectNoneBtn.addEventListener('click', () => {
-			this.selectedFiles.clear();
-			this.renderList();
-		});
-
-		// File list
-		this.listEl = filesSection.createDiv({ cls: 'bbab-tf-preview' });
-		this.renderList();
 
 		// Buttons
 		const buttonContainer = contentEl.createDiv({ cls: 'bbab-tf-button-container' });
@@ -2128,6 +2138,7 @@ class FolderPickerModal extends Modal {
 	onOpen() {
 		const { contentEl } = this;
 		contentEl.empty();
+		this.modalEl.addClass('bbab-tf-large-modal');
 		contentEl.addClass('bbab-tf-folder-picker-modal');
 
 		contentEl.createEl('h2', { text: 'Select folder to tag' });
@@ -2217,6 +2228,7 @@ class DatePickerModal extends Modal {
 	onOpen() {
 		const { contentEl } = this;
 		contentEl.empty();
+		this.modalEl.addClass('bbab-tf-large-modal');
 		contentEl.addClass('bbab-tf-date-picker-modal');
 
 		contentEl.createEl('h2', { text: 'Select dates to revert' });
@@ -2343,6 +2355,7 @@ class MoveConfirmationModal extends Modal {
 	onOpen() {
 		const { contentEl } = this;
 		contentEl.empty();
+		this.modalEl.addClass('bbab-tf-large-modal');
 		contentEl.addClass('bbab-tf-move-modal');
 
 		contentEl.createEl('h2', { text: 'File Moved' });
@@ -2432,6 +2445,7 @@ class GroupedMoveConfirmationModal extends Modal {
 	onOpen() {
 		const { contentEl } = this;
 		contentEl.empty();
+		this.modalEl.addClass('bbab-tf-large-modal');
 		contentEl.addClass('bbab-tf-grouped-move-modal');
 
 		contentEl.createEl('h2', { text: 'Multiple Files Moved' });
@@ -2845,6 +2859,7 @@ class UndoHistoryModal extends Modal {
 	onOpen() {
 		const { contentEl } = this;
 		contentEl.empty();
+		this.modalEl.addClass('bbab-tf-large-modal');
 		contentEl.addClass('bbab-tf-undo-history-modal');
 
 		contentEl.createEl('h2', { text: 'Undo History' });
@@ -2975,6 +2990,7 @@ class TagReportModal extends Modal {
 	onOpen() {
 		const { contentEl } = this;
 		contentEl.empty();
+		this.modalEl.addClass('bbab-tf-large-modal');
 		contentEl.addClass('bbab-tf-report-modal');
 
 		contentEl.createEl('h2', { text: 'Tag Report Dashboard' });
@@ -3171,6 +3187,7 @@ class ValidationResultsModal extends Modal {
 	onOpen() {
 		const { contentEl } = this;
 		contentEl.empty();
+		this.modalEl.addClass('bbab-tf-large-modal');
 		contentEl.addClass('bbab-tf-validation-modal');
 
 		contentEl.createEl('h2', { text: 'Validation Results' });

@@ -1,7 +1,19 @@
 # ADR Priority List - TagForge
 
-**Last Updated:** December 30, 2024
-**Version:** 1.0.0 (Marketplace Ready)
+**Last Updated:** January 1, 2025
+**Version:** 1.0.1 (UI Improvements)
+
+---
+
+## Post-v1.0.0: UI Improvements - IN PROGRESS
+
+| Order | Feature | Status | Notes |
+|-------|---------|--------|-------|
+| 44 | Settings-window sized modals | **Done** | 90vw x 80vh, max 900px, mobile full-screen |
+| 45 | 2-column layout for BulkPreviewModal | **Done** | File tree left, controls right |
+| 46 | Grouped move modal close button fix | **Partial** | setTimeout fix applied, still intermittent |
+| 47 | Windows system file cleanup | **Done** | desktop.ini, Thumbs.db deleted on folder cleanup |
+| 48 | Wipe/manage existing tags in bulk add | Planned | User requested, needs design discussion |
 
 ---
 
