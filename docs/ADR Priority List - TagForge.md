@@ -168,6 +168,9 @@ Phase 4 features were absorbed into Phase 3's enhanced preview modal:
 
 | Feature | Notes | Documentation |
 |---------|-------|---------------|
+| Grouped Move Modal Refinement | Improve visual hierarchy, spacing, readability | - |
+| BulkPreviewModal File Tree | Collapsible folder tree instead of flat list | - |
+| Bulk Add Tag Management | Wipe existing tags / granular tag checklist | - |
 | Folder Tag Preview | Preview tags before creating files | `docs/Feature Proposal - Folder Tag Preview.md` |
 | Phase 7: Filename patterns | Regex/glob on filenames | - |
 | Phase 7: Content-based rules | Search content for patterns | - |
