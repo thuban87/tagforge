@@ -5,7 +5,43 @@
 
 ---
 
-## Post-v1.0.0: UI Improvements - IN PROGRESS
+## Phase 10: Explicit Folder Rules System - PLANNING
+
+**ADR:** `docs/ADR-002-FolderRulesSystem.md`
+
+**Summary:** Replace implicit folder-name-to-tag algorithm with explicit rules. Tags only apply when rules exist. Full user control.
+
+| Order | Feature | Status | Notes |
+|-------|---------|--------|-------|
+| 49 | Add `folderRules` to data model | Planned | `Record<string, FolderRule>` in settings |
+| 50 | Create `getRulesForPath()` function | Planned | Replaces implicit algorithm |
+| 51 | Update file creation watcher | Planned | Use rules instead of algorithm |
+| 52 | Update nuclear option | Planned | Also wipe `folderRules` |
+| 53 | Rules Management Modal | Planned | Folder tree + rule editor |
+| 54 | Bulk Add Modal: "Save as rule" option | Planned | Checkbox + level selection |
+| 55 | Remove legacy `getTagsForPath()` | Planned | Final cleanup |
+
+**Rule Data Model:**
+```typescript
+interface FolderRule {
+  tags: string[];                      // Tags this rule applies
+  applyDownLevels: 'all' | number[];   // 'all' or specific levels [1, 2, 4]
+  inheritFromAncestors: boolean;       // Also receive tags from parent rules?
+  applyToNewFiles: boolean;            // Trigger on file creation?
+  createdAt: string;
+  lastModified: string;
+}
+```
+
+**Key Behaviors:**
+- Push-down model: Rules push tags to children based on `applyDownLevels`
+- Additive stacking: Multiple rules combine, no conflicts
+- Level skipping: `[1, 3, 4]` applies to levels 1, 3, 4 but skips level 2
+- No rules = no auto-tags (fully explicit)
+
+---
+
+## Post-v1.0.0: UI Improvements - COMPLETE
 
 | Order | Feature | Status | Notes |
 |-------|---------|--------|-------|

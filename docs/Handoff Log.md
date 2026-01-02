@@ -1,11 +1,93 @@
 # TagForge Handoff Log
 
 **Last Updated:** January 2, 2025
-**Current Phase:** Post-v1.0.0 - UI Improvements
+**Current Phase:** Post-v1.0.0 - Planning Folder Rules System
 **Current Branch:** feature-bulk-editing
 **GitHub:** Initialized and connected
 **Version:** 1.0.1
 **Total Features Implemented:** 34 (across 9 phases) + marketplace prep + UI improvements + bulk edit mode
+
+---
+
+## Session: January 2, 2025 (Evening) - Folder Rules System Brainstorming
+
+### Session Summary
+
+Brainstorming session to design an explicit Folder Rules System. During testing, user discovered that bulk-add operations appeared to set "rules" on folders (new files inherited tags), but this was actually just the default algorithm recalculating. This led to unpredictable behavior and no way to manage folder-level tagging configuration.
+
+**Key Decision:** Replace the implicit folder-name-to-tag algorithm with an explicit rules system. Tags are ONLY applied when explicit rules exist. No more "magic."
+
+### What Was Decided
+
+| Decision | Choice |
+|----------|--------|
+| Rules storage | `data.json` under `folderRules` |
+| Default algorithm | **Removed** - only explicit rules apply tags |
+| Rule behavior | Push-down from parents, additive stacking |
+| Ancestor inheritance | Explicit per-rule (`inheritFromAncestors` boolean) |
+| Nuclear option | Wipes `folderRules` too (update warning text) |
+| Bulk add `inheritDepth` | Stays as bootstrapping tool for new rules |
+| Rules UI | Dedicated modal via button in settings |
+
+### Rule Data Model
+
+```typescript
+interface FolderRule {
+  tags: string[];                      // Tags this rule applies
+  applyDownLevels: 'all' | number[];   // 'all' or specific levels [1, 2, 4]
+  inheritFromAncestors: boolean;       // Also receive tags from parent rules?
+  applyToNewFiles: boolean;            // Trigger on file creation?
+  createdAt: string;                   // ISO timestamp
+  lastModified: string;                // ISO timestamp
+}
+```
+
+### How Rules Work
+
+**Push-down model:** Rules push tags DOWN to children based on `applyDownLevels`. They don't automatically pull UP from ancestors (controlled by `inheritFromAncestors`).
+
+**Additive stacking:** Multiple rules can affect a file. Their tags combine. No "winner takes all."
+
+**Level skipping:** `applyDownLevels: [1, 3, 4]` applies to levels 1, 3, 4 but skips level 2.
+
+### UI Changes Planned
+
+1. **Rules Management Modal** (new)
+   - Accessed via `[Manage Folder Rules]` button in settings
+   - Left panel: Folder tree with rule indicators
+   - Right panel: Rule editor for selected folder
+   - Shows warnings when parent rules also affect folder
+
+2. **Bulk Add Modal Updates**
+   - Add "Save as folder rule" checkbox
+   - If checked: show level selection (this folder / subfolders / custom)
+   - Clear explanation that this sets a rule, not just one-time operation
+
+3. **Nuclear Option Update**
+   - Also wipes `folderRules`
+   - Update warning text to mention rule deletion
+
+### Implementation Phases (When Ready)
+
+1. Data model & core logic (`getRulesForPath()`)
+2. Rules Management Modal
+3. Bulk Add Modal integration
+4. Remove legacy algorithm, cleanup
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| docs/ADR-002-FolderRulesSystem.md | Full architecture decision record for rules system |
+
+### Testing Issues That Led to This
+
+- Nuclear option doesn't reset folder rules (because there weren't any stored)
+- No way to view/manage rules on folders
+- Bulk add doesn't indicate it's setting a rule
+- Special tags don't persist for new files
+- "New rule" didn't stick after remove + re-add (algorithm just recalculated)
+- Need subfolder toggle (apply to this folder vs this + subfolders)
 
 ---
 
@@ -194,55 +276,66 @@ onClose() {
 ## Next Session Prompt
 
 ```
-TagForge - v1.0.1 UI Improvements
+TagForge - v1.0.1 → Folder Rules System Implementation
 
 **Directory:** C:\Users\bwales\projects\obsidian-plugins\tagforge\
 **Deploy to:** G:\My Drive\IT\Obsidian Vault\My Notebooks\.obsidian\plugins\tagforge\
-**Current branch:** (check with git branch)
+**Current branch:** feature-bulk-editing
 **Version:** 1.0.1
 
 **Docs:**
 - docs\Handoff Log.md - START HERE for full context
-- docs\Project Summary.md
-- docs\ADR-001-Architecture.md
+- docs\ADR-001-Architecture.md - Core architecture
+- docs\ADR-002-FolderRulesSystem.md - NEW: Full rules system design
 - docs\ADR Priority List - TagForge.md
 
-**Last Session Completed:**
-1. All modals resized to settings-window size (90vw x 80vh)
-2. BulkPreviewModal has 2-column layout (file tree left, controls right)
-3. Fixed grouped move modal close button with setTimeout
-4. Added Windows system file cleanup for folder deletion
-5. Mobile responsiveness preserved
+**Last Session:** Brainstorming for Folder Rules System (ADR-002 written)
 
-**BUG TO FIX: Close Button Folder Cleanup (Regression)**
+**MAJOR FEATURE: Explicit Folder Rules System**
 
-The X button on GroupedMoveConfirmationModal isn't consistently cleaning up
-empty folders when cancelling a move. The Cancel button works fine.
+Replace the implicit folder-name-to-tag algorithm with explicit rules.
+Tags only apply when rules exist. No more magic.
 
-**Investigation Steps:**
-1. Add debug logging to onClose() and handleGroupedMoveResult()
-2. Verify setTimeout callback is firing
-3. Compare execution order between Cancel and X button paths
-4. Try increasing setTimeout delay from 0 to 50ms
-5. Check if this is timing-related (Google Drive sync?)
+**Implementation Phases:**
 
-**Key Code Locations:**
-- GroupedMoveConfirmationModal: main.ts ~line 2419
-- onClose(): main.ts ~line 2562
-- handleGroupedMoveResult(): main.ts ~line 500
-- Folder cleanup logic: main.ts ~line 626
+Phase 1: Data Model & Core Logic
+- Add `folderRules: Record<string, FolderRule>` to settings
+- Create `getRulesForPath()` function (replaces getTagsForPath logic)
+- Update file creation watcher to use new function
+- Update nuclear option to wipe folderRules
 
-**PENDING FEATURE: Wipe/Manage Existing Tags**
+Phase 2: Rules Management Modal
+- New modal accessed via button in settings
+- Left panel: folder tree with rule indicators
+- Right panel: rule editor (tags, levels, inheritance, apply to new files)
+- Parent rule warnings
 
-User wants ability to wipe existing tags or manage them more granularly
-in the BulkPreviewModal. The 2-column layout provides room for this on
-the right side. Need to discuss implementation approach with user.
+Phase 3: Bulk Add Modal Integration
+- Add "Save as folder rule" checkbox
+- Level selection (this folder / subfolders / custom levels)
+- Explanatory text about setting rules vs one-time operations
+
+Phase 4: Cleanup
+- Remove legacy getTagsForPath() algorithm
+- Update documentation
+- Testing
+
+**Key Data Model:**
+```typescript
+interface FolderRule {
+  tags: string[];
+  applyDownLevels: 'all' | number[];
+  inheritFromAncestors: boolean;
+  applyToNewFiles: boolean;
+  createdAt: string;
+  lastModified: string;
+}
+```
 
 **Build & Deploy:**
-1. npm run build (outputs main.js + copies styles.css & manifest.json)
-2. Reload Obsidian
+npm run build → Reload Obsidian
 
-**esbuild externals:** 'obsidian', 'fs', 'path' (for Node.js access)
+**esbuild externals:** 'obsidian', 'fs', 'path'
 ```
 
 ---
