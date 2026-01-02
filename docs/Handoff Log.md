@@ -1,11 +1,77 @@
 # TagForge Handoff Log
 
-**Last Updated:** January 1, 2025
+**Last Updated:** January 2, 2025
 **Current Phase:** Post-v1.0.0 - UI Improvements
-**Current Branch:** (new branch - user created)
+**Current Branch:** feature-bulk-editing
 **GitHub:** Initialized and connected
 **Version:** 1.0.1
-**Total Features Implemented:** 33 (across 9 phases) + marketplace prep + UI improvements
+**Total Features Implemented:** 34 (across 9 phases) + marketplace prep + UI improvements + bulk edit mode
+
+---
+
+## Session: January 2, 2025 - Bulk Edit Mode & Bug Fixes
+
+### Session Summary
+
+Added edit mode to BulkPreviewModal allowing users to delete existing tags before applying new ones. Fixed X button folder cleanup (now uses fs.rmdirSync directly, bypassing Obsidian's stale cache). Fixed tracking property mismatch that caused auto-tags to appear as manual tags.
+
+### What Was Accomplished
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Fix X button folder cleanup | **Done** | Uses fs.rmdirSync directly; Google Drive phantoms may persist until refresh |
+| Add edit mode to BulkPreviewModal | **Done** | Full implementation with auto/manual tag distinction |
+| Fix tracking property mismatch | **Done** | Was reading `tags` instead of `autoTags` |
+| Add expand/collapse all buttons | **Done** | File tree now has Expand All / Collapse All |
+
+### Edit Mode Feature (New)
+
+**Flow:**
+1. Normal mode: "Edit Existing Tags" button below file tree
+2. Click to enter edit mode:
+   - Right column controls greyed out
+   - Auto-tags show as green chips with X buttons
+   - Manual tags locked (grey chips, no X)
+   - "Stop Editing" and "Edit Manual Tags" buttons appear
+3. Click X on tag: Shows strikethrough (pending deletion)
+4. Click X again: Removes from deletion list
+5. "Edit Manual Tags": Enables editing manual tags (with warning)
+6. Apply: Executes all additions AND deletions together
+
+**Key Changes:**
+- `EnhancedPreviewItem` now includes `autoTags: string[]`
+- `BulkPreviewModal` has edit mode state: `isEditMode`, `allowManualTagEditing`, `tagsToDelete`
+- `computeFinalResults()` returns `{ file, tagsToAdd, tagsToRemove }`
+- `executeBulkApply()` handles both additions and removals
+- New `removeTagsFromFile()` method respects protected tags and updates tracking
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| main.ts | Edit mode state & UI; tracking property fix; removeTagsFromFile method; expand/collapse buttons |
+| styles.css | Edit mode styles: tag chips, controls-disabled, warning text |
+| docs/ADR Priority List.md | Updated item 48 status; added Full Tag Management Modal to future |
+
+### New CSS Classes
+
+| Class | Purpose |
+|-------|---------|
+| `.bbab-tf-edit-buttons` | Container for edit mode buttons |
+| `.bbab-tf-tag-chips` | Container for editable tag chips |
+| `.bbab-tf-tag-chip` | Individual tag chip |
+| `.bbab-tf-tag-chip-auto` | Auto-tag styling (green) |
+| `.bbab-tf-tag-chip-manual` | Manual tag styling (grey) |
+| `.bbab-tf-tag-chip-delete` | Strikethrough for pending deletion |
+| `.bbab-tf-tag-chip-locked` | Dimmed, non-editable |
+| `.bbab-tf-controls-disabled` | Greyed out right column |
+
+### Bug Fixes
+
+1. **X button folder cleanup**: Changed from Obsidian API (`vault.delete`) to Node.js (`fs.rmdirSync`) to bypass stale cache
+2. **Tracking property**: Was reading `tracking?.tags`, should be `tracking?.autoTags`
+3. **removeTagsFromFile null safety**: Added check for `tracking.autoTags` existence
+4. **Stats counter**: Now includes files with pending deletions
 
 ---
 

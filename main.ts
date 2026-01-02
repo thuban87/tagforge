@@ -629,53 +629,50 @@ export default class TagForgePlugin extends Plugin {
 					const vaultBasePath = (this.app.vault.adapter as any).basePath as string;
 
 					// Helper to clean Windows system files from a folder
-					const cleanSystemFiles = (folderPath: string): boolean => {
+					const cleanSystemFiles = (folderPath: string): void => {
 						try {
 							const fullPath = nodePath.join(vaultBasePath, folderPath);
-							if (!fs.existsSync(fullPath)) return false;
+							if (!fs.existsSync(fullPath)) return;
 
 							const entries = fs.readdirSync(fullPath);
-							// Check if folder only contains system files
-							const hasOnlySystemFiles = entries.every((entry: string) =>
-								WINDOWS_SYSTEM_FILES.has(entry.toLowerCase())
-							);
-
-							if (hasOnlySystemFiles && entries.length > 0) {
-								// Delete each system file
-								for (const entry of entries) {
+							for (const entry of entries) {
+								if (WINDOWS_SYSTEM_FILES.has(entry.toLowerCase())) {
 									try {
 										fs.unlinkSync(nodePath.join(fullPath, entry));
 									} catch (e) {
-										// Ignore errors - file might be locked
+										// File might be locked - that's ok, we'll retry
 									}
 								}
-								return true;
 							}
-							return entries.length === 0;
 						} catch (e) {
-							return false;
+							// Ignore errors
 						}
 					};
 
 					// Helper to delete a folder with retries for ENOTEMPTY race conditions
 					const tryDeleteFolder = async (folderPath: string, retries = 3): Promise<boolean> => {
+						const fullPath = nodePath.join(vaultBasePath, folderPath);
+
 						for (let attempt = 0; attempt < retries; attempt++) {
 							try {
-								// First, clean any Windows system files
+								if (!fs.existsSync(fullPath)) return false;
+
+								// Clean any Windows system files first
 								cleanSystemFiles(folderPath);
 
-								const folder = this.app.vault.getAbstractFileByPath(folderPath);
-								if (folder && folder instanceof TFolder && folder.children.length === 0) {
-									await this.app.vault.delete(folder);
+								// Check filesystem directly (not Obsidian's stale cache)
+								const remaining = fs.readdirSync(fullPath);
+								if (remaining.length === 0) {
+									// Delete via filesystem directly
+									fs.rmdirSync(fullPath);
 									return true;
 								}
-								return false; // Not empty or doesn't exist
+								return false; // Not empty
 							} catch (e: unknown) {
 								// Retry on ENOTEMPTY (filesystem sync delay)
 								if (e instanceof Error && e.message.includes('ENOTEMPTY') && attempt < retries - 1) {
-									// Try cleaning system files again before retry
 									cleanSystemFiles(folderPath);
-									await new Promise(r => setTimeout(r, 300)); // Wait 300ms before retry
+									await new Promise(r => setTimeout(r, 300));
 									continue;
 								}
 								return false;
@@ -807,6 +804,38 @@ export default class TagForgePlugin extends Plugin {
 				}
 			}
 		});
+	}
+
+	async removeTagsFromFile(file: TFile, tagsToRemove: string[]) {
+		// Filter out protected tags - never remove those (case-insensitive comparison)
+		const protectedLower = this.settings.protectedTags.map(t => t.toLowerCase());
+		const safeToRemove = tagsToRemove.filter(t => !protectedLower.includes(t.toLowerCase()));
+
+		if (safeToRemove.length === 0) {
+			return;
+		}
+
+		// Remove from frontmatter
+		await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+			if (frontmatter.tags && Array.isArray(frontmatter.tags)) {
+				frontmatter.tags = frontmatter.tags.filter(
+					(tag: string) => !safeToRemove.includes(tag)
+				);
+				if (frontmatter.tags.length === 0) {
+					delete frontmatter.tags;
+				}
+			}
+		});
+
+		// Update tag tracking to remove these tags from the tracked list
+		const tracking = this.tagTracking[file.path];
+		if (tracking && tracking.autoTags) {
+			tracking.autoTags = tracking.autoTags.filter(t => !safeToRemove.includes(t));
+			if (tracking.autoTags.length === 0) {
+				delete this.tagTracking[file.path];
+			}
+			await this.saveSettings();
+		}
 	}
 
 	getParentFolder(filePath: string): string {
@@ -1265,12 +1294,17 @@ export default class TagForgePlugin extends Plugin {
 				}
 			}
 
+			// Get auto-tags (tags tracked by TagForge)
+			const tracking = this.tagTracking[file.path];
+			const autoTags = tracking?.autoTags || [];
+
 			// Get folder tags by level
 			const folderTagsByLevel = this.getFolderTagsByLevel(file.path);
 
 			items.push({
 				file,
 				currentTags,
+				autoTags,
 				folderTagsByLevel,
 			});
 		}
@@ -1310,8 +1344,10 @@ export default class TagForgePlugin extends Plugin {
 		return tagsByLevel;
 	}
 
-	async executeBulkApply(results: Array<{ file: TFile; tags: string[] }>) {
-		let applied = 0;
+	async executeBulkApply(results: Array<{ file: TFile; tagsToAdd: string[]; tagsToRemove: string[] }>) {
+		let filesModified = 0;
+		let tagsAdded = 0;
+		let tagsRemoved = 0;
 		let errors = 0;
 		const operationFiles: OperationFileState[] = [];
 
@@ -1321,7 +1357,17 @@ export default class TagForgePlugin extends Plugin {
 				// Capture state before
 				const tagsBefore = await this.getFileTags(item.file);
 
-				await this.applyTagsToFile(item.file.path, item.tags);
+				// Remove tags first (if any)
+				if (item.tagsToRemove.length > 0) {
+					await this.removeTagsFromFile(item.file, item.tagsToRemove);
+					tagsRemoved += item.tagsToRemove.length;
+				}
+
+				// Add tags (if any)
+				if (item.tagsToAdd.length > 0) {
+					await this.applyTagsToFile(item.file.path, item.tagsToAdd);
+					tagsAdded += item.tagsToAdd.length;
+				}
 
 				// Capture state after
 				const tagsAfter = await this.getFileTags(item.file);
@@ -1332,9 +1378,9 @@ export default class TagForgePlugin extends Plugin {
 					tagsAfter,
 				});
 
-				applied++;
+				filesModified++;
 			} catch (e) {
-				console.error(`TagForge: Failed to tag ${item.file.path}`, e);
+				console.error(`TagForge: Failed to modify ${item.file.path}`, e);
 				errors++;
 			}
 
@@ -1347,10 +1393,18 @@ export default class TagForgePlugin extends Plugin {
 
 		// Record the bulk operation
 		if (operationFiles.length > 0) {
-			await this.recordOperation('bulk', `Bulk applied tags to ${applied} files`, operationFiles);
+			const description = tagsRemoved > 0
+				? `Bulk modified ${filesModified} files (${tagsAdded} added, ${tagsRemoved} removed)`
+				: `Bulk applied tags to ${filesModified} files`;
+			await this.recordOperation('bulk', description, operationFiles);
 		}
 
-		new Notice(`Tagged ${applied} files. ${errors > 0 ? `${errors} errors.` : ''}`);
+		// Build notice message
+		const parts: string[] = [];
+		if (tagsAdded > 0) parts.push(`${tagsAdded} tags added`);
+		if (tagsRemoved > 0) parts.push(`${tagsRemoved} tags removed`);
+		if (errors > 0) parts.push(`${errors} errors`);
+		new Notice(`Modified ${filesModified} files. ${parts.join(', ')}`);
 	}
 
 	getTagsForPath(filePath: string): string[] {
@@ -1690,14 +1744,15 @@ interface ValidationIssue {
 
 interface EnhancedPreviewItem {
 	file: TFile;
-	currentTags: string[];
+	currentTags: string[];        // All tags currently on the file
+	autoTags: string[];           // Tags tracked by TagForge (subset of currentTags)
 	folderTagsByLevel: string[][]; // Tags at each level: [[level1], [level2], ...]
 }
 
 class BulkPreviewModal extends Modal {
 	items: EnhancedPreviewItem[];
 	targetDescription: string;
-	onConfirm: (results: Array<{ file: TFile; tags: string[] }>) => void;
+	onConfirm: (results: Array<{ file: TFile; tagsToAdd: string[]; tagsToRemove: string[] }>) => void;
 	inheritDepth: number;
 
 	// State
@@ -1709,17 +1764,24 @@ class BulkPreviewModal extends Modal {
 	maxLevel: number = 0;
 	expandedFolders: Set<string> = new Set(); // Track which folder groups are expanded
 
+	// Edit mode state
+	isEditMode: boolean = false;
+	allowManualTagEditing: boolean = false;
+	tagsToDelete: Map<string, Set<string>> = new Map(); // filePath → tags marked for deletion
+
 	// UI references for updates
 	listEl: HTMLElement | null = null;
 	applyBtn: HTMLButtonElement | null = null;
 	statsEl: HTMLElement | null = null;
+	editButtonsContainer: HTMLElement | null = null;
+	rightColumn: HTMLElement | null = null;
 
 	constructor(
 		app: App,
 		items: EnhancedPreviewItem[],
 		targetDescription: string,
 		inheritDepth: number,
-		onConfirm: (results: Array<{ file: TFile; tags: string[] }>) => void
+		onConfirm: (results: Array<{ file: TFile; tagsToAdd: string[]; tagsToRemove: string[] }>) => void
 	) {
 		super(app);
 		this.items = items;
@@ -1777,15 +1839,35 @@ class BulkPreviewModal extends Modal {
 			this.renderList();
 		});
 
+		const expandAllBtn = selectionBtns.createEl('button', { text: 'Expand All' });
+		expandAllBtn.addEventListener('click', () => {
+			// Get all folder paths from items
+			for (const item of this.items) {
+				const folderPath = this.getParentFolder(item.file.path);
+				this.expandedFolders.add(folderPath);
+			}
+			this.renderList();
+		});
+
+		const collapseAllBtn = selectionBtns.createEl('button', { text: 'Collapse All' });
+		collapseAllBtn.addEventListener('click', () => {
+			this.expandedFolders.clear();
+			this.renderList();
+		});
+
 		// File list (scrollable)
 		this.listEl = leftColumn.createDiv({ cls: 'bbab-tf-preview' });
 		this.renderList();
 
+		// Edit mode buttons container
+		this.editButtonsContainer = leftColumn.createDiv({ cls: 'bbab-tf-edit-buttons' });
+		this.renderEditButtons();
+
 		// RIGHT COLUMN - Controls
-		const rightColumn = columnsContainer.createDiv({ cls: 'bbab-tf-column-right' });
+		this.rightColumn = columnsContainer.createDiv({ cls: 'bbab-tf-column-right' });
 
 		// Folder Tags Section
-		const folderSection = rightColumn.createDiv({ cls: 'bbab-tf-section' });
+		const folderSection = this.rightColumn.createDiv({ cls: 'bbab-tf-section' });
 		folderSection.createEl('h3', { text: 'Folder Tags' });
 
 		const levelContainer = folderSection.createDiv({ cls: 'bbab-tf-level-toggles' });
@@ -1825,7 +1907,7 @@ class BulkPreviewModal extends Modal {
 		});
 
 		// Additional Tags Section
-		const additionalSection = rightColumn.createDiv({ cls: 'bbab-tf-section' });
+		const additionalSection = this.rightColumn.createDiv({ cls: 'bbab-tf-section' });
 		additionalSection.createEl('h3', { text: 'Additional Tags' });
 
 		const additionalInput = additionalSection.createEl('input', {
@@ -1872,7 +1954,7 @@ class BulkPreviewModal extends Modal {
 		this.applyBtn.addEventListener('click', () => {
 			const results = this.computeFinalResults();
 			if (results.length === 0) {
-				new Notice('No tags to apply');
+				new Notice('No changes to apply');
 				return;
 			}
 			this.close();
@@ -1922,7 +2004,9 @@ class BulkPreviewModal extends Modal {
 				const additionalTags = this.getAdditionalTagsForFile(item);
 				const allNewTags = [...new Set([...folderTags, ...additionalTags])];
 				const tagsToAdd = allNewTags.filter(t => !item.currentTags.includes(t));
-				if (tagsToAdd.length > 0) {
+				const deletionsForFile = this.tagsToDelete.get(item.file.path);
+				const hasChanges = tagsToAdd.length > 0 || (deletionsForFile && deletionsForFile.size > 0);
+				if (hasChanges) {
 					folderChanges++;
 					filesWithChanges++;
 				}
@@ -2007,17 +2091,62 @@ class BulkPreviewModal extends Modal {
 					// Tags display
 					const tagsEl = itemEl.createDiv({ cls: 'bbab-tf-tree-file-tags' });
 
+					// Get tags marked for deletion for this file
+					const deletionsForFile = this.tagsToDelete.get(item.file.path) || new Set<string>();
+
 					if (item.currentTags.length > 0) {
 						tagsEl.createSpan({ text: 'Has: ', cls: 'bbab-tf-tag-label' });
+
+						if (this.isEditMode) {
+							// Edit mode: show tags as chips
+							const chipsContainer = tagsEl.createSpan({ cls: 'bbab-tf-tag-chips' });
+							for (const tag of item.currentTags) {
+								const isAutoTag = item.autoTags.includes(tag);
+								const isMarkedForDeletion = deletionsForFile.has(tag);
+								const canEdit = isAutoTag || this.allowManualTagEditing;
+
+								const chipEl = chipsContainer.createSpan({
+									cls: `bbab-tf-tag-chip ${isAutoTag ? 'bbab-tf-tag-chip-auto' : 'bbab-tf-tag-chip-manual'} ${isMarkedForDeletion ? 'bbab-tf-tag-chip-delete' : ''} ${!canEdit ? 'bbab-tf-tag-chip-locked' : ''}`,
+								});
+								chipEl.createSpan({ text: '#' + tag });
+
+								if (canEdit) {
+									const deleteBtn = chipEl.createSpan({
+										text: '×',
+										cls: 'bbab-tf-tag-delete-btn',
+									});
+									deleteBtn.addEventListener('click', (e) => {
+										e.stopPropagation();
+										this.toggleTagDeletion(item.file.path, tag);
+									});
+								}
+							}
+						} else {
+							// Normal mode: show tags as text, with strikethrough for deletions
+							const tagsWithStatus = item.currentTags.map(t => {
+								if (deletionsForFile.has(t)) {
+									return `<s>#${t}</s>`;
+								}
+								return '#' + t;
+							});
+							const tagSpan = tagsEl.createSpan({ cls: 'bbab-tf-tag-current' });
+							tagSpan.innerHTML = tagsWithStatus.join(' ');
+						}
+					}
+
+					// Show "Removing:" for tags marked for deletion (only in normal mode for clarity)
+					if (!this.isEditMode && deletionsForFile.size > 0) {
+						tagsEl.createSpan({ text: ' ' });
+						tagsEl.createSpan({ text: 'Removing: ', cls: 'bbab-tf-tag-label bbab-tf-tag-label-remove' });
 						tagsEl.createSpan({
-							text: item.currentTags.map(t => '#' + t).join(' '),
-							cls: 'bbab-tf-tag-current',
+							text: Array.from(deletionsForFile).map(t => '#' + t).join(' '),
+							cls: 'bbab-tf-tag-remove',
 						});
 					}
 
 					// Only show "Adding:" if the file is selected (checked)
 					if (isSelected && tagsToAdd.length > 0) {
-						if (item.currentTags.length > 0) tagsEl.createSpan({ text: ' ' });
+						if (item.currentTags.length > 0 || deletionsForFile.size > 0) tagsEl.createSpan({ text: ' ' });
 						tagsEl.createSpan({ text: 'Adding: ', cls: 'bbab-tf-tag-label' });
 
 						// Show folder tags
@@ -2042,7 +2171,7 @@ class BulkPreviewModal extends Modal {
 						// Show indicator that file is excluded
 						if (item.currentTags.length > 0) tagsEl.createSpan({ text: ' ' });
 						tagsEl.createSpan({ text: '(excluded)', cls: 'bbab-tf-no-changes' });
-					} else if (item.currentTags.length === 0 && tagsToAdd.length === 0) {
+					} else if (item.currentTags.length === 0 && tagsToAdd.length === 0 && deletionsForFile.size === 0) {
 						tagsEl.createSpan({ text: '(no changes)', cls: 'bbab-tf-no-changes' });
 					}
 				}
@@ -2063,6 +2192,91 @@ class BulkPreviewModal extends Modal {
 
 		// Restore scroll position
 		this.listEl.scrollTop = scrollTop;
+	}
+
+	renderEditButtons() {
+		if (!this.editButtonsContainer) return;
+		this.editButtonsContainer.empty();
+
+		if (!this.isEditMode) {
+			// Normal mode: show "Edit Existing Tags" button
+			const editBtn = this.editButtonsContainer.createEl('button', {
+				text: 'Edit Existing Tags',
+				cls: 'bbab-tf-edit-tags-btn',
+			});
+			editBtn.addEventListener('click', () => {
+				this.isEditMode = true;
+				this.renderEditButtons();
+				this.renderList();
+				this.updateRightColumnState();
+			});
+		} else {
+			// Edit mode: show "Stop Editing" and "Edit Manual Tags" buttons
+			const stopBtn = this.editButtonsContainer.createEl('button', {
+				text: 'Stop Editing',
+				cls: 'bbab-tf-stop-editing-btn',
+			});
+			stopBtn.addEventListener('click', () => {
+				this.isEditMode = false;
+				this.allowManualTagEditing = false;
+				this.renderEditButtons();
+				this.renderList();
+				this.updateRightColumnState();
+			});
+
+			if (!this.allowManualTagEditing) {
+				const manualBtn = this.editButtonsContainer.createEl('button', {
+					text: 'Edit Manual Tags',
+					cls: 'bbab-tf-edit-manual-btn',
+				});
+				manualBtn.addEventListener('click', () => {
+					this.allowManualTagEditing = true;
+					this.renderEditButtons();
+					this.renderList();
+				});
+
+				// Warning text
+				this.editButtonsContainer.createEl('p', {
+					text: 'Warning: Manual tag changes cannot be reverted by TagForge.',
+					cls: 'bbab-tf-manual-warning',
+				});
+			} else {
+				// Show indicator that manual editing is enabled
+				this.editButtonsContainer.createEl('p', {
+					text: 'Manual tag editing enabled. Changes cannot be reverted.',
+					cls: 'bbab-tf-manual-warning bbab-tf-manual-active',
+				});
+			}
+		}
+	}
+
+	updateRightColumnState() {
+		if (!this.rightColumn) return;
+		if (this.isEditMode) {
+			this.rightColumn.addClass('bbab-tf-controls-disabled');
+		} else {
+			this.rightColumn.removeClass('bbab-tf-controls-disabled');
+		}
+	}
+
+	toggleTagDeletion(filePath: string, tag: string) {
+		if (!this.tagsToDelete.has(filePath)) {
+			this.tagsToDelete.set(filePath, new Set());
+		}
+		const fileTags = this.tagsToDelete.get(filePath)!;
+		if (fileTags.has(tag)) {
+			fileTags.delete(tag);
+			if (fileTags.size === 0) {
+				this.tagsToDelete.delete(filePath);
+			}
+		} else {
+			fileTags.add(tag);
+		}
+		this.renderList();
+	}
+
+	isTagMarkedForDeletion(filePath: string, tag: string): boolean {
+		return this.tagsToDelete.get(filePath)?.has(tag) || false;
 	}
 
 	getParentFolder(filePath: string): string {
@@ -2090,22 +2304,24 @@ class BulkPreviewModal extends Modal {
 		return this.additionalTags;
 	}
 
-	computeFinalResults(): Array<{ file: TFile; tags: string[] }> {
-		const results: Array<{ file: TFile; tags: string[] }> = [];
+	computeFinalResults(): Array<{ file: TFile; tagsToAdd: string[]; tagsToRemove: string[] }> {
+		const results: Array<{ file: TFile; tagsToAdd: string[]; tagsToRemove: string[] }> = [];
 
 		for (const item of this.items) {
-			// Only process files that are selected (checked)
-			if (!this.selectedFiles.has(item.file.path)) {
-				continue;
-			}
-
 			const folderTags = this.computeFolderTags(item);
 			const additionalTags = this.getAdditionalTagsForFile(item);
 			const allNewTags = [...new Set([...folderTags, ...additionalTags])];
-			const tagsToAdd = allNewTags.filter(t => !item.currentTags.includes(t));
 
-			if (tagsToAdd.length > 0) {
-				results.push({ file: item.file, tags: tagsToAdd });
+			// Only add tags if file is selected
+			const tagsToAdd = this.selectedFiles.has(item.file.path)
+				? allNewTags.filter(t => !item.currentTags.includes(t))
+				: [];
+
+			// Get tags marked for removal (applies regardless of selection)
+			const tagsToRemove = Array.from(this.tagsToDelete.get(item.file.path) || []);
+
+			if (tagsToAdd.length > 0 || tagsToRemove.length > 0) {
+				results.push({ file: item.file, tagsToAdd, tagsToRemove });
 			}
 		}
 
@@ -2578,15 +2794,19 @@ class GroupedMoveConfirmationModal extends Modal {
 		contentEl.empty();
 
 		// If closed without clicking a button (X or Escape), default to Cancel (undo moves)
-		// Use setTimeout to defer callback until after modal is fully closed (matches Cancel button behavior)
+		// Use setTimeout to defer callback until after modal is fully closed
+		// Capture values before timeout to ensure they're not affected by modal cleanup
 		if (!this.resultSent) {
+			const capturedExcludedPaths = new Set(this.excludedPaths);
+			const capturedOnResult = this.onResult;
+
 			setTimeout(() => {
-				this.onResult({
+				capturedOnResult({
 					action: 'cancel',
-					excludedPaths: new Set(this.excludedPaths),
+					excludedPaths: capturedExcludedPaths,
 					remember: false,
 				});
-			}, 0);
+			}, 50); // 50ms delay to ensure modal is fully closed
 		}
 	}
 }

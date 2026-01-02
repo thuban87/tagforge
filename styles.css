@@ -585,6 +585,155 @@
 }
 
 /* ============================================================================
+   Edit Mode (Bulk Preview Modal)
+   ============================================================================ */
+
+/* Edit buttons container */
+.bbab-tf-edit-buttons {
+    margin-top: 0.75em;
+    padding-top: 0.75em;
+    border-top: 1px solid var(--background-modifier-border);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5em;
+    align-items: center;
+}
+
+.bbab-tf-edit-tags-btn,
+.bbab-tf-stop-editing-btn,
+.bbab-tf-edit-manual-btn {
+    padding: 0.5em 1em;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.bbab-tf-stop-editing-btn {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border: none;
+}
+
+.bbab-tf-edit-manual-btn {
+    background: transparent;
+    border: 1px solid var(--background-modifier-border);
+    color: var(--text-muted);
+}
+
+.bbab-tf-edit-manual-btn:hover {
+    background: var(--background-secondary);
+}
+
+.bbab-tf-manual-warning {
+    font-size: 0.85em;
+    color: var(--text-error);
+    margin: 0.5em 0 0 0;
+    flex-basis: 100%;
+}
+
+.bbab-tf-manual-active {
+    color: var(--text-accent);
+    font-weight: 500;
+}
+
+/* Right column disabled state */
+.bbab-tf-controls-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Tag chips container */
+.bbab-tf-tag-chips {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.35em;
+}
+
+/* Individual tag chip */
+.bbab-tf-tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25em;
+    padding: 0.15em 0.5em;
+    border-radius: 1em;
+    font-size: 0.9em;
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+}
+
+.bbab-tf-tag-chip-auto {
+    background: var(--background-modifier-success-hover);
+    border-color: var(--background-modifier-success);
+}
+
+.bbab-tf-tag-chip-manual {
+    background: var(--background-secondary);
+    border-color: var(--background-modifier-border);
+}
+
+.bbab-tf-tag-chip-locked {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.bbab-tf-tag-chip-delete {
+    text-decoration: line-through;
+    opacity: 0.7;
+    background: var(--background-modifier-error-hover);
+    border-color: var(--background-modifier-error);
+}
+
+.bbab-tf-tag-chip-delete .bbab-tf-tag-delete-btn {
+    color: var(--text-error);
+}
+
+/* Delete button on chips */
+.bbab-tf-tag-delete-btn {
+    cursor: pointer;
+    font-size: 1.1em;
+    font-weight: bold;
+    line-height: 1;
+    color: var(--text-muted);
+    padding: 0 0.1em;
+    margin-left: 0.1em;
+}
+
+.bbab-tf-tag-delete-btn:hover {
+    color: var(--text-error);
+}
+
+/* Removing label */
+.bbab-tf-tag-label-remove {
+    color: var(--text-error);
+}
+
+/* Mobile adjustments for edit mode */
+@media screen and (max-width: 600px) {
+    .bbab-tf-edit-buttons {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .bbab-tf-edit-tags-btn,
+    .bbab-tf-stop-editing-btn,
+    .bbab-tf-edit-manual-btn {
+        min-height: 44px;
+        width: 100%;
+    }
+
+    .bbab-tf-tag-chip {
+        padding: 0.25em 0.6em;
+    }
+
+    .bbab-tf-tag-delete-btn {
+        min-width: 24px;
+        min-height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+}
+
+/* ============================================================================
    Folder Aliases (Phase 5)
    ============================================================================ */
 
