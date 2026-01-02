@@ -3904,6 +3904,16 @@ class RulesManagementModal extends Modal {
 					text: '●',
 					attr: { title: 'Has rule' },
 				});
+			} else {
+				// Check if this folder inherits from a parent rule
+				const inheritedRules = this.getParentRulesAffecting(childPath);
+				if (inheritedRules.length > 0) {
+					itemEl.createSpan({
+						cls: 'bbab-tf-tree-rule-indicator-inherited',
+						text: '○',
+						attr: { title: `Inherits from: ${inheritedRules.map(r => r.path).join(', ')}` },
+					});
+				}
 			}
 
 			// Click to select
@@ -4195,8 +4205,33 @@ class RulesManagementModal extends Modal {
 
 		let applied = 0;
 		for (const file of files) {
+			// Compute tags for this specific file using folderTagLevels
+			const tagsToApply: string[] = [...rule.tags]; // Start with static tags
+
+			// Add dynamic folder-based tags from folderTagLevels
+			if (rule.folderTagLevels && rule.folderTagLevels.length > 0) {
+				const fileParts = file.path.split('/');
+				fileParts.pop(); // Remove filename to get folder parts
+
+				for (const level of rule.folderTagLevels) {
+					const folderIndex = level - 1;
+					if (folderIndex >= 0 && folderIndex < fileParts.length) {
+						const folderName = fileParts[folderIndex];
+						const tag = this.plugin.folderNameToTag(folderName);
+						if (tag.length > 1 && /[a-z0-9]/.test(tag)) {
+							tagsToApply.push(tag);
+						}
+					}
+				}
+			}
+
+			// Deduplicate
+			const uniqueTags = [...new Set(tagsToApply)];
+
+			if (uniqueTags.length === 0) continue;
+
 			const existingTags = await this.plugin.getFileTags(file);
-			const newTags = rule.tags.filter(t => !existingTags.includes(t));
+			const newTags = uniqueTags.filter(t => !existingTags.map(e => e.toLowerCase()).includes(t.toLowerCase()));
 
 			if (newTags.length > 0) {
 				await this.plugin.applyTagsToFile(file.path, newTags);

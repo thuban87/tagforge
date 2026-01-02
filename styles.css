@@ -543,7 +543,17 @@
     font-weight: bold;
 }
 
+.bbab-tf-tree-rule-indicator-inherited {
+    color: var(--color-yellow);
+    font-size: 1.1em;
+    margin-left: 0.5em;
+}
+
 .bbab-tf-tree-item-selected .bbab-tf-tree-rule-indicator {
+    color: var(--text-on-accent);
+}
+
+.bbab-tf-tree-item-selected .bbab-tf-tree-rule-indicator-inherited {
     color: var(--text-on-accent);
 }
 
