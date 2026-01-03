@@ -1,8 +1,8 @@
 # ADR-002: Folder Rules System
 
-**Status:** Proposed
+**Status:** Implemented
 **Date:** January 2, 2025
-**Last Updated:** January 2, 2025
+**Last Updated:** January 3, 2025 (barrier logic fix)
 
 ---
 

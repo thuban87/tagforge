@@ -1,11 +1,38 @@
 # ADR Priority List - TagForge
 
-**Last Updated:** January 2, 2025
-**Version:** 1.0.1 (UI Improvements + Bulk Edit Mode)
+**Last Updated:** January 3, 2025
+**Version:** 1.0.1 (Folder Rules System + Bug Fixes)
 
 ---
 
-## Phase 10: Explicit Folder Rules System - IN PROGRESS
+## Phase 11: Bug Fixes & Polish - IN PROGRESS
+
+**Summary:** Testing revealed critical bugs. Fixed 9 bugs on January 3, 2025. Remaining items are investigations and UI polish.
+
+| Order | Feature | Status | Notes |
+|-------|---------|--------|-------|
+| 56 | Fix old algorithm calls (2 places) | **Done** | Changed to `getRulesForPath()` |
+| 57 | Fix undo to restore tracking | **Done** | Added `trackingBefore` to operations |
+| 58 | Fix `inheritFromAncestors` logic | **Done** | Barrier-based blocking now works |
+| 59 | Fix protected tags (apply vs remove) | **Done** | Can add, can't remove |
+| 60 | Fix revert functions (protected tags) | **Done** | All 3 revert functions now respect protected |
+| 61 | Add validation dismiss buttons | **Done** | Per-item and "Dismiss All Missing" |
+| 62 | Fix move modal messaging | **Done** | Shows tag status for both single/grouped |
+| 63 | Fix inherit default & saveability | **Done** | Default true, barrier rules saveable |
+| 64 | Fix undo modal language | **Done** | revert→REMOVE, bulk→BULK ADD |
+| 65 | Investigate text field unresponsive | Pending | Happens after remove, recovers in seconds |
+| 66 | Investigate validation mobile vs desktop | Pending | Different results on different platforms |
+| 67 | Rules Manager: expand/collapse all | Pending | Low complexity |
+| 68 | Tag Report: scrollable on mobile | Pending | CSS fix |
+| 69 | Hide nuclear on mobile | Pending | Low complexity |
+| 70 | Bulk Add: clarify radio scope | Pending | Low complexity |
+| 71 | Rules Manager: rule summary text | Pending | Medium complexity |
+| 72 | Validation: filtering/sorting | Pending | Medium complexity |
+| 73 | Folder-scoped nuclear option | Pending | Medium complexity |
+
+---
+
+## Phase 10: Explicit Folder Rules System - COMPLETE
 
 **ADR:** `docs/ADR-002-FolderRulesSystem.md`
 
@@ -14,19 +41,20 @@
 | Order | Feature | Status | Notes |
 |-------|---------|--------|-------|
 | 49 | Add `folderRules` to data model | **Done** | `Record<string, FolderRule>` in settings |
-| 50 | Create `getRulesForPath()` function | **Done** | Replaces implicit algorithm |
+| 50 | Create `getRulesForPath()` function | **Done** | Replaces implicit algorithm, includes barrier logic |
 | 51 | Update file creation watcher | **Done** | Use rules instead of algorithm |
 | 52 | Update nuclear option | **Done** | Also wipes `folderRules`, updated warning text |
 | 53 | Rules Management Modal | **Done** | Folder tree + rule editor, accessed from settings |
 | 54 | Bulk Add Modal: "Save as rule" option | **Done** | Checkbox + level selection |
-| 55 | Remove legacy `getTagsForPath()` | Pending | Final cleanup - can keep for compatibility |
+| 55 | Remove legacy `getTagsForPath()` | **Done** | All calls changed to `getRulesForPath()` |
 
 **Rule Data Model:**
 ```typescript
 interface FolderRule {
   tags: string[];                      // Tags this rule applies
+  folderTagLevels: number[];           // Dynamic: derive tags from folder levels
   applyDownLevels: 'all' | number[];   // 'all' or specific levels [1, 2, 4]
-  inheritFromAncestors: boolean;       // Also receive tags from parent rules?
+  inheritFromAncestors: boolean;       // Accept tags from parent rules? (default: true)
   applyToNewFiles: boolean;            // Trigger on file creation?
   createdAt: string;
   lastModified: string;
@@ -36,6 +64,7 @@ interface FolderRule {
 **Key Behaviors:**
 - Push-down model: Rules push tags to children based on `applyDownLevels`
 - Additive stacking: Multiple rules combine, no conflicts
+- Barrier rules: `inheritFromAncestors: false` blocks parent rules from passing through
 - Level skipping: `[1, 3, 4]` applies to levels 1, 3, 4 but skips level 2
 - No rules = no auto-tags (fully explicit)
 

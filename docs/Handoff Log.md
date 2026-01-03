@@ -1,11 +1,113 @@
 # TagForge Handoff Log
 
-**Last Updated:** January 2, 2025
-**Current Phase:** Post-v1.0.0 - Planning Folder Rules System
-**Current Branch:** feature-bulk-editing
+**Last Updated:** January 3, 2025
+**Current Phase:** Post-v1.0.0 - Bug Fixes & Polish
+**Current Branch:** main
 **GitHub:** Initialized and connected
 **Version:** 1.0.1
-**Total Features Implemented:** 34 (across 9 phases) + marketplace prep + UI improvements + bulk edit mode
+**Total Features Implemented:** 34 (across 9 phases) + marketplace prep + UI improvements + bulk edit mode + folder rules system
+
+---
+
+## Session: January 3, 2025 (Evening) - UI Polish
+
+### Session Summary
+
+Minor UI polish session. Fixed a tracking bug in bulk add operations.
+
+### What Was Done
+
+| Item | Details |
+|------|---------|
+| Tag Report mobile scroll | Added `overflow-y: auto` to report modal on mobile |
+| Bulk Add radio button labels | Added "Apply additional tags to:" label, changed to "All files in list" / "Checked files only" |
+| Rules Manager expand/collapse | Added Expand All / Collapse All buttons to folder tree |
+| Bulk Add columns height | Reduced header margins and modal padding to give more space |
+| Tracking merge bug | Fixed `applyTagsToFile()` to MERGE tags with existing tracking instead of replacing |
+| Nuclear option hidden on mobile | Wrapped command registration in `Platform.isMobile` check |
+| Rules Manager summary box | Added summary display showing current rule settings when a rule exists |
+| Bulk Add empty folders | Tree now shows empty folders with "(empty)" indicator |
+| Command rename | Renamed confusing "REMOVE: Remove all auto-applied tags" to "REMOVE: Undo all TagForge-applied tags (keeps manual)" |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| main.ts | `Platform` import, nuclear command wrapped in mobile check, `applyTagsToFile()` merges tracking, Rules Manager summary box, Bulk Add shows empty folders, command rename |
+| styles.css | `.bbab-tf-rule-summary`, `.bbab-tf-rule-summary-text`, `.bbab-tf-tree-empty`, `.bbab-tf-tree-header-empty`, modal header margin reductions |
+
+### Known Issues Still Outstanding
+
+**Bugs:**
+- Text fields becoming unresponsive after remove operations (not investigated)
+
+**UI/UX improvements remaining:**
+- Bulk Add: expand rule level options
+- Validation Modal: filtering/sorting for large lists
+- Folder-scoped nuclear option
+
+---
+
+## Session: January 3, 2025 - Major Bug Fixes & Testing Round
+
+### Session Summary
+
+Comprehensive testing session that uncovered and fixed multiple critical bugs in the folder rules system and tracking mechanisms. Fixed 9 bugs total across protected tags, undo/tracking, inheritance logic, and move modal messaging.
+
+### Critical Bugs Fixed
+
+| Bug | Issue | Fix |
+|-----|-------|-----|
+| **Old algorithm still active** | `getTagsForPath()` was still being called in 2 places (manual tag command, file move handler) | Changed to `getRulesForPath()` at lines 320 and 791 |
+| **Undo doesn't restore tracking** | When you removed tags then undid, tags came back as "manual" because tracking wasn't restored | Added `trackingBefore` to `OperationFileState`, updated all 3 revert functions to save tracking, updated `undoOperation()` to restore it |
+| **`inheritFromAncestors` broken** | The flag did nothing - parent rules always applied regardless of child's setting | Rewrote `getRulesForPath()` to find the deepest "barrier" folder and skip ancestors above it |
+| **Protected tags blocked application** | Protected tags couldn't be added by rules, only removal was supposed to be blocked | Removed the filter from `applyTagsToFile()`, kept protection only in removal functions |
+| **Revert functions ignored protected tags** | All 3 revert functions did inline removal without checking protected tags | Updated `revertAllAutoTags`, `revertFilesFromDates`, `revertAutoTagsByFolder` to filter protected tags before removal and maintain tracking for them |
+
+### UI/UX Fixes
+
+| Fix | Details |
+|-----|---------|
+| **`inheritFromAncestors` default** | Changed default from `false` to `true` (folders inherit by default) |
+| **Barrier rules saveable** | Can now save a rule that only unchecks "Accept parent rules" without adding tags |
+| **Clearer inherit label** | Changed "Inherit tags from parent folder rules" → "Accept tags from parent folder rules" with hint text |
+| **Undo modal language** | Changed type labels: `revert` → "REMOVE", `bulk` → "BULK ADD" |
+| **Move modal shows rule status** | Both single and grouped move modals now show: current auto-tags, warning if dest has no rules, new tags if dest has rules |
+| **Validation dismiss option** | Added "Dismiss" button per missing-tag item and "Dismiss All Missing" button |
+| **Protected tags wording** | Updated settings description to clarify they can be added but not removed |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| main.ts | `OperationFileState.trackingBefore`, all 3 revert functions, `getRulesForPath()` barrier logic, `applyTagsToFile()`, `undoOperation()`, `MoveConfirmationModal`, `GroupedMoveConfirmationModal`, `ValidationResultsModal`, `UndoHistoryModal.getOperationLabel()` |
+| styles.css | `.bbab-tf-form-hint`, `.bbab-tf-move-tag-summary`, `.bbab-tf-move-old-tags`, `.bbab-tf-move-warning`, `.bbab-tf-move-info`, `.bbab-tf-move-new-tags`, `.bbab-tf-validation-btns`, `.bbab-tf-dismiss-btn` |
+
+### Key Code Location Changes
+
+| Function | Old Line | New Line (approx) |
+|----------|----------|-------------------|
+| `getRulesForPath()` | ~1493 | ~1514 (rewritten with barrier logic) |
+| `revertAllAutoTags()` | ~869 | ~869 (major changes for protected tags) |
+| `MoveConfirmationModal` | ~2874 | ~2876 (now accepts plugin, file, oldPath) |
+| `ValidationResultsModal` | ~3687 | ~3687 (added dismiss buttons) |
+
+### Known Issues Still Outstanding
+
+**Bugs (need investigation):**
+1. Text fields becoming unresponsive after remove operations (recovers after a few seconds)
+2. Validation showing different results on mobile vs desktop
+
+**UI/UX improvements queued:**
+- Rules Manager: expand/collapse all buttons
+- Rules Manager: rule summary text box
+- Bulk Add Modal: clarify radio button scope
+- Bulk Add Modal: expand rule level options
+- Bulk Add: show empty folders in tree
+- Tag Report: not scrollable on mobile (CSS fix)
+- Hide nuclear option on mobile command palette
+- Validation Modal: filtering/sorting for large lists
+- Folder-scoped nuclear option
 
 ---
 
@@ -279,61 +381,45 @@ onClose() {
 ## Next Session Prompt
 
 ```
-TagForge - v1.0.1 → Folder Rules System Implementation
+TagForge - v1.0.1 → Bug Fixes & Polish
 
 **Directory:** C:\Users\bwales\projects\obsidian-plugins\tagforge\
 **Deploy to:** G:\My Drive\IT\Obsidian Vault\My Notebooks\.obsidian\plugins\tagforge\
-**Current branch:** feature-bulk-editing
+**Current branch:** main
 **Version:** 1.0.1
 
 **Docs:**
 - docs\Handoff Log.md - START HERE for full context
 - docs\ADR-001-Architecture.md - Core architecture
-- docs\ADR-002-FolderRulesSystem.md - NEW: Full rules system design
+- docs\ADR-002-FolderRulesSystem.md - Folder rules system design
 - docs\ADR Priority List - TagForge.md
 
-**Last Session:** Brainstorming for Folder Rules System (ADR-002 written)
+**Last Session:** January 3, 2025 (Evening) - UI Polish
+- Tag Report mobile scroll, Bulk Add radio labels, Rules Manager expand/collapse
+- Fixed tracking merge bug in applyTagsToFile()
+- Nuclear option hidden on mobile, Rules Manager summary box, Bulk Add empty folders
 
-**MAJOR FEATURE: Explicit Folder Rules System**
+**PRIORITY 1: Investigate outstanding bug**
 
-Replace the implicit folder-name-to-tag algorithm with explicit rules.
-Tags only apply when rules exist. No more magic.
+Text fields becoming unresponsive after remove operations
+- Happens after remove commands, recovers after a few seconds
+- Might be Obsidian issue or event handler conflict
+- Add debug logging to trace
 
-**Implementation Phases:**
+**PRIORITY 2: UI/UX Polish (remaining)**
 
-Phase 1: Data Model & Core Logic
-- Add `folderRules: Record<string, FolderRule>` to settings
-- Create `getRulesForPath()` function (replaces getTagsForPath logic)
-- Update file creation watcher to use new function
-- Update nuclear option to wipe folderRules
+| Task | Complexity |
+|------|------------|
+| Bulk Add: expand rule level options | Medium |
+| Validation Modal: filtering/sorting | Medium |
+| Folder-scoped nuclear option | Medium |
 
-Phase 2: Rules Management Modal
-- New modal accessed via button in settings
-- Left panel: folder tree with rule indicators
-- Right panel: rule editor (tags, levels, inheritance, apply to new files)
-- Parent rule warnings
-
-Phase 3: Bulk Add Modal Integration
-- Add "Save as folder rule" checkbox
-- Level selection (this folder / subfolders / custom levels)
-- Explanatory text about setting rules vs one-time operations
-
-Phase 4: Cleanup
-- Remove legacy getTagsForPath() algorithm
-- Update documentation
-- Testing
-
-**Key Data Model:**
-```typescript
-interface FolderRule {
-  tags: string[];
-  applyDownLevels: 'all' | number[];
-  inheritFromAncestors: boolean;
-  applyToNewFiles: boolean;
-  createdAt: string;
-  lastModified: string;
-}
-```
+**Key Code Locations:**
+- `getRulesForPath()`: main.ts ~line 1514 (with barrier logic)
+- `revertAllAutoTags()`: main.ts ~line 869 (respects protected tags)
+- `MoveConfirmationModal`: main.ts ~line 2876 (shows tag status)
+- `ValidationResultsModal`: main.ts ~line 3687 (has dismiss buttons)
+- `applyTagsToFile()`: main.ts ~line 1683 (merges tracking)
 
 **Build & Deploy:**
 npm run build → Reload Obsidian
