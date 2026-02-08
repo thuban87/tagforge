@@ -5,7 +5,9 @@
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
-    "build": "node esbuild.config.mjs production"
+    "build": "node esbuild.config.mjs production",
+    "deploy:test": "powershell -Command \"$dest='C:\\Quest-Board-Test-Vault\\.obsidian\\plugins\\tagforge'; if(!(Test-Path $dest)){New-Item -ItemType Directory -Path $dest -Force}; Copy-Item main.js,manifest.json,styles.css -Destination $dest -Force; Write-Host '✅ Deployed to test vault'\"",
+    "deploy:production": "node deploy-production.mjs"
   },
   "keywords": [
     "obsidian",

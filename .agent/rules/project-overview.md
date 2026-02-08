@@ -1,3 +1,7 @@
+---
+trigger: always_on
+---
+
 # TagForge — Development Guidelines
 
 Instructions for AI assistants working on this project.
