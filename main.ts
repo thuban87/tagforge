@@ -6,6 +6,7 @@ import {
 } from './src/types';
 import { UndoHistoryModal } from './src/modals/UndoHistoryModal';
 import { TagReportModal } from './src/modals/TagReportModal';
+import { TagForgeMenuModal } from './src/modals/TagForgeMenuModal';
 import { TagForgeSettingTab } from './src/settings';
 
 // Services
@@ -42,10 +43,20 @@ export default class TagForgePlugin extends Plugin {
 	moveHandler: MoveHandler;
 
 	async onload() {
-		// Load settings and tag tracking data
 		await this.loadSettings();
+		this.initializeServices();
+		this.addSettingTab(new TagForgeSettingTab(this.app, this));
+		this.registerCommands();
+		this.registerRibbonIcons();
+		this.registerEventHandlers();
+	}
 
-		// Initialize services (order matters — later services depend on earlier ones)
+	// -------------------------------------------------------------------------
+	// Initialization Helpers
+	// -------------------------------------------------------------------------
+
+	/** Initialize all service instances. Order matters — later services depend on earlier ones. */
+	private initializeServices() {
 		this.tagResolver = new TagResolver(this);
 		this.tagIO = new TagIO(this);
 		this.historyService = new HistoryService(this);
@@ -53,25 +64,29 @@ export default class TagForgePlugin extends Plugin {
 		this.bulkOperations = new BulkOperations(this);
 		this.revertService = new RevertService(this);
 		this.moveHandler = new MoveHandler(this);
+	}
 
-		// Add settings tab
-		this.addSettingTab(new TagForgeSettingTab(this.app, this));
+	/** Register all plugin commands in the command palette. */
+	private registerCommands() {
+		this.addCommand({
+			id: 'tagforge-menu',
+			name: 'TagForge Menu',
+			callback: () => new TagForgeMenuModal(this.app, this).open(),
+		});
 
-		// Add command to manually trigger tagging
 		this.addCommand({
 			id: 'tag-current-file',
 			name: 'TAG: Manually tag current file',
 			callback: () => this.tagCurrentFile(),
 		});
 
-		// Remove auto-applied tags (keeps manual tags intact)
 		this.addCommand({
 			id: 'revert-all-auto-tags',
 			name: 'REMOVE: Undo all TagForge-applied tags (keeps manual)',
 			callback: () => this.revertService.revertAllAutoTags(),
 		});
 
-		// Nuclear remove - clear ALL tags (desktop only)
+		// Nuclear remove — desktop only
 		if (!Platform.isMobile) {
 			this.addCommand({
 				id: 'revert-all-tags-nuclear',
@@ -86,21 +101,18 @@ export default class TagForgePlugin extends Plugin {
 			});
 		}
 
-		// Date-filtered remove
 		this.addCommand({
 			id: 'revert-auto-tags-by-date',
 			name: 'REMOVE: Remove auto-tags by date',
 			callback: () => this.revertService.revertAutoTagsByDate(),
 		});
 
-		// Folder-specific remove
 		this.addCommand({
 			id: 'revert-auto-tags-by-folder',
 			name: 'REMOVE: Remove auto-tags from specific folder',
 			callback: () => this.revertService.revertAutoTagsByFolder(),
 		});
 
-		// Phase 3: Bulk operations
 		this.addCommand({
 			id: 'bulk-apply-tags',
 			name: 'BULK ADD: Apply tags to entire vault (with preview)',
@@ -113,28 +125,27 @@ export default class TagForgePlugin extends Plugin {
 			callback: () => this.bulkOperations.bulkApplyToFolder(),
 		});
 
-		// Phase 8: Undo/History
 		this.addCommand({
 			id: 'undo-operation',
 			name: 'UNDO: Undo a recent tag operation',
 			callback: () => this.showUndoHistory(),
 		});
 
-		// Phase 8: Tag Report Dashboard
 		this.addCommand({
 			id: 'tag-report',
 			name: 'REPORT: View tag report dashboard',
 			callback: () => this.showTagReport(),
 		});
 
-		// Phase 8: Validation
 		this.addCommand({
 			id: 'validate-tags',
 			name: 'VALIDATE: Check for tag issues',
 			callback: () => this.validationService.validateTags(),
 		});
+	}
 
-		// Phase 9: Ribbon icons for mobile menu
+	/** Register ribbon icons for mobile/sidebar access. */
+	private registerRibbonIcons() {
 		this.addRibbonIcon('history', 'TagForge: Undo', () => {
 			this.showUndoHistory();
 		});
@@ -142,22 +153,21 @@ export default class TagForgePlugin extends Plugin {
 		this.addRibbonIcon('tags', 'TagForge: Bulk Add to folder', () => {
 			this.bulkOperations.bulkApplyToFolder();
 		});
+	}
 
-		// Phase 2: Watch for new files (only after vault is fully loaded)
-		// Phase 6: Watch for file moves (renames that change parent folder)
+	/** Register vault event handlers (file create + rename/move). */
+	private registerEventHandlers() {
 		this.app.workspace.onLayoutReady(() => {
+			// Watch for new file creation → auto-tag
 			this.registerEvent(
 				this.app.vault.on('create', (file) => {
 					if (file instanceof TFile) {
-						// Cancel any pending operation for this file (debouncing)
 						const existingTimeout = this.pendingFileOps.get(file.path);
 						if (existingTimeout) {
 							window.clearTimeout(existingTimeout);
 							this.pendingTimeouts = this.pendingTimeouts.filter(id => id !== existingTimeout);
 						}
 
-						// Wait 100ms to ensure Obsidian's metadata cache has registered
-						// the file before we modify its frontmatter (race condition mitigation)
 						const timeoutId = window.setTimeout(() => {
 							this.pendingTimeouts = this.pendingTimeouts.filter(id => id !== timeoutId);
 							this.pendingFileOps.delete(file.path);
@@ -169,17 +179,15 @@ export default class TagForgePlugin extends Plugin {
 				})
 			);
 
-			// Phase 6: Handle file moves
+			// Watch for file moves/renames → re-tag
 			this.registerEvent(
 				this.app.vault.on('rename', (file, oldPath) => {
 					if (file instanceof TFile) {
-						// Cancel any pending operation for this file (debouncing)
 						const existingTimeout = this.pendingFileOps.get(file.path);
 						if (existingTimeout) {
 							window.clearTimeout(existingTimeout);
 							this.pendingTimeouts = this.pendingTimeouts.filter(id => id !== existingTimeout);
 						}
-						// Also cancel any pending op for the old path
 						const oldPathTimeout = this.pendingFileOps.get(oldPath);
 						if (oldPathTimeout) {
 							window.clearTimeout(oldPathTimeout);
@@ -187,8 +195,6 @@ export default class TagForgePlugin extends Plugin {
 							this.pendingFileOps.delete(oldPath);
 						}
 
-						// Wait 100ms to ensure Obsidian's metadata cache has registered
-						// the rename before we modify its frontmatter (race condition mitigation)
 						const timeoutId = window.setTimeout(() => {
 							this.pendingTimeouts = this.pendingTimeouts.filter(id => id !== timeoutId);
 							this.pendingFileOps.delete(file.path);

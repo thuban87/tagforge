@@ -94,6 +94,64 @@
 }
 
 /* ============================================================================
+   TagForge Menu Modal
+   ============================================================================ */
+
+.bbab-tf-menu-modal {
+    max-width: 420px !important;
+}
+
+.bbab-tf-menu-modal h2 {
+    margin: 0 0 0.75em 0;
+    text-align: center;
+}
+
+.bbab-tf-menu-group {
+    margin-bottom: 1em;
+}
+
+.bbab-tf-menu-group-title {
+    margin: 0 0 0.5em 0;
+    font-size: 0.85em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.bbab-tf-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75em;
+    width: 100%;
+    padding: 0.65em 0.75em;
+    margin-bottom: 3px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    cursor: pointer;
+    font-size: 0.95em;
+    text-align: left;
+    transition: background 0.1s ease;
+}
+
+.bbab-tf-menu-item:hover {
+    background: var(--background-secondary);
+    border-color: var(--interactive-accent);
+}
+
+.bbab-tf-menu-icon {
+    font-size: 1.1em;
+    flex-shrink: 0;
+    width: 1.5em;
+    text-align: center;
+}
+
+.bbab-tf-menu-label {
+    flex: 1;
+}
+
+/* ============================================================================
    Large Modal Base - Settings Window Sized
    ============================================================================ */
 
@@ -621,7 +679,7 @@
     gap: 0.5em;
 }
 
-.bbab-tf-form-section > label {
+.bbab-tf-form-section>label {
     font-weight: 500;
     font-size: 0.9em;
 }
@@ -1337,7 +1395,7 @@
     font-size: 0.9em;
 }
 
-.bbab-tf-move-tag-summary > div {
+.bbab-tf-move-tag-summary>div {
     margin: 0.3em 0;
 }
 
@@ -2104,7 +2162,8 @@
     .bbab-tf-settings-container textarea {
         min-height: 44px;
         padding: 0.75em;
-        font-size: 16px; /* Prevents iOS zoom on focus */
+        font-size: 16px;
+        /* Prevents iOS zoom on focus */
     }
 
     /* ========================================================================

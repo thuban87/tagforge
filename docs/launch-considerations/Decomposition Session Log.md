@@ -258,28 +258,100 @@ Phase 4 of main.ts decomposition:
 
 ---
 
+## 2026-02-10 - Phase 5: Final Cleanup + Bonus Features
+
+**Focus:** Clean up `main.ts` as thin entry point, fix DatePicker UTC issue, add TagForge Menu modal
+
+### Completed:
+
+- ✅ Refactored `onload()` into 4 private helper methods:
+  - `initializeServices()` — 7 service constructors
+  - `registerCommands()` — 11 command registrations (10 existing + 1 new menu)
+  - `registerRibbonIcons()` — 2 ribbon icons
+  - `registerEventHandlers()` — file create + rename handlers
+- ✅ Deleted 3 `.gitkeep` files from `src/`, `src/modals/`, `src/services/`
+- ✅ Fixed DatePickerModal UTC timestamps → local time
+  - Changed `revertAutoTagsByDate()` to use `new Date(iso).toLocaleDateString()` instead of `split('T')[0]`
+  - Removed "(dates shown in UTC)" from modal description
+- ✅ Created `TagForgeMenuModal` with grouped commands
+  - 3 groups: Add Tags, Remove Tags, System
+  - Order: least impactful → most impactful (single file → folder → vault)
+  - Nuclear option hidden on mobile
+- ✅ Added HARD STOP caution block to `CLAUDE.md` dev workflow section
+- ✅ Updated `Decomposition Implementation Guide` — Phase 5 marked ✅ Done
+
+### Files Changed:
+
+| File | Changes |
+|------|---------|
+| `main.ts` | Refactored `onload()` into 4 helper methods, added `TagForgeMenuModal` import + command (297 → 296 lines) |
+| `src/modals/TagForgeMenuModal.ts` | New — 141 lines, grouped command menu |
+| `src/modals/DatePickerModal.ts` | Removed "(dates shown in UTC)" text |
+| `src/services/RevertService.ts` | Changed date extraction from UTC to local |
+| `styles.css` | Added menu modal styles (~58 lines) |
+| `CLAUDE.md` | Added HARD STOP caution block |
+
+### Testing Notes:
+
+- ✅ `npm run build` succeeds with 0 errors
+- ✅ `main.js`: 144,569 bytes (Phase 5 refactor), final with menu features
+- ✅ `main.ts`: 296 lines
+- ✅ Deployed to test vault, Brad confirmed:
+  - Phase 5 structural refactor: all 6 smoke tests pass
+  - TagForge Menu: modal opens, all commands fire correctly
+  - DatePicker: dates now display in local format
+  - Command ordering: adjusted per feedback (least → most impactful)
+
+### Blockers/Issues:
+
+- None
+
+### Commit Message:
+
+```
+refactor: phase 5 cleanup + menu modal + date fix
+
+Phase 5 of main.ts decomposition (final):
+- Refactor onload() into initializeServices(), registerCommands(),
+  registerRibbonIcons(), registerEventHandlers()
+- Delete .gitkeep placeholder files
+- main.ts: 297 → 296 lines (thin entry point complete)
+
+Bonus features:
+- Add TagForge Menu modal with grouped commands (Add/Remove/System)
+  ordered least → most impactful, nuclear hidden on mobile
+- Fix DatePickerModal UTC timestamps to display in local time
+- Add HARD STOP workflow reminder to CLAUDE.md
+- main.js output: 144,569 bytes
+- All features tested and passing
+```
+
+---
+
 ## Next Session Prompt
 
 ```
-TagForge - Decomposition Phase 5: Final Cleanup
+TagForge - Post-Decomposition
 
 Directory: C:\Users\bwales\projects\obsidian-plugins\tagforge\
 Current branch: feat/decomposition-project
 
 Docs:
-- docs\launch-considerations\Decomposition Implementation Guide.md - MASTER GUIDE
-- docs\launch-considerations\Decomposition Session Log.md - Session history
-- CLAUDE.md - Development guidelines
+- CLAUDE.md - Development guidelines (updated with new file structure)
+- docs\Handoff Log.md - Session history
+- docs\launch-considerations\Decomposition Implementation Guide.md
+- docs\launch-considerations\Decomposition Session Log.md
 
-Last Session: 2026-02-10 - Phase 4: Extract Services
-- Extracted 7 services to src/services/
-- main.ts: 1,875 → 297 lines (84% reduction)
-- Build verified, all 10 commands tested in Obsidian
+Last Session: 2026-02-10 - Decomposition COMPLETE (all 6 phases)
+- main.ts is now a 296-line thin entry point
+- 19 source files across src/types, src/settings, src/services/, src/modals/
+- TagForge Menu modal added, DatePicker UTC fix applied
+- All features tested and confirmed
 
-THIS SESSION: Phase 5 — Final Cleanup
-Remove .gitkeep files, update CLAUDE.md with new file structure,
-do final review of main.ts.
-See Decomposition Implementation Guide.md → Phase 5 for exact details.
+Remaining known items:
+- Update CLAUDE.md file structure section to reflect new modular layout
+- Update Codebase Stats.md with current line counts
+- See Handoff Log for other known future items
 
 Build & Deploy:
 npm run build → npm run deploy:test → Brad tests in Obsidian

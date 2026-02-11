@@ -205,8 +205,8 @@ export class RevertService {
 
         for (const [filePath, tracking] of Object.entries(this.plugin.tagTracking)) {
             if (!tracking.lastUpdated) continue;
-            // Extract UTC date from ISO string (YYYY-MM-DD)
-            const date = tracking.lastUpdated.split('T')[0];
+            // Convert to local date (user's timezone)
+            const date = new Date(tracking.lastUpdated).toLocaleDateString();
             if (!dateMap[date]) {
                 dateMap[date] = [];
             }

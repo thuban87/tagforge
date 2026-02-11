@@ -29,7 +29,7 @@ export class DatePickerModal extends Modal {
 
         contentEl.createEl('h2', { text: 'Select dates to revert' });
         contentEl.createEl('p', {
-            text: 'Choose which dates to remove auto-applied tags from (dates shown in UTC):',
+            text: 'Choose which dates to remove auto-applied tags from:',
             cls: 'bbab-tf-description',
         });
 
