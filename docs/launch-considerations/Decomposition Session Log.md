@@ -92,10 +92,73 @@ Each session entry should include:
 
 ---
 
+## 2026-02-10 - Phase 2: Extract Modals
+
+**Focus:** Move all 9 modal classes from `main.ts` to individual files in `src/modals/`
+
+### Completed:
+
+- ✅ Extracted all 9 modals to `src/modals/`:
+  - `BulkPreviewModal.ts` (719 lines) — largest, uses `import type TagForgePlugin`
+  - `RulesManagementModal.ts` (542 lines) — uses `import type TagForgePlugin`, `Setting`
+  - `GroupedMoveConfirmationModal.ts` (197 lines)
+  - `TagReportModal.ts` (190 lines)
+  - `ValidationResultsModal.ts` (144 lines)
+  - `UndoHistoryModal.ts` (143 lines)
+  - `MoveConfirmationModal.ts` (127 lines)
+  - `DatePickerModal.ts` (101 lines)
+  - `FolderPickerModal.ts` (80 lines)
+- ✅ Added 9 modal import statements to `main.ts`
+- ✅ Removed `Modal` from Obsidian import in `main.ts` (no longer directly used)
+- ✅ Removed all 9 modal class blocks from `main.ts`
+
+### Files Changed:
+
+| File | Changes |
+|------|---------|
+| `main.ts` | Removed 9 modal classes + headers, added 9 imports, removed `Modal` from Obsidian import |
+| `src/modals/BulkPreviewModal.ts` | New — 719 lines |
+| `src/modals/RulesManagementModal.ts` | New — 542 lines |
+| `src/modals/GroupedMoveConfirmationModal.ts` | New — 197 lines |
+| `src/modals/TagReportModal.ts` | New — 190 lines |
+| `src/modals/ValidationResultsModal.ts` | New — 144 lines |
+| `src/modals/UndoHistoryModal.ts` | New — 143 lines |
+| `src/modals/MoveConfirmationModal.ts` | New — 127 lines |
+| `src/modals/DatePickerModal.ts` | New — 101 lines |
+| `src/modals/FolderPickerModal.ts` | New — 80 lines |
+
+### Testing Notes:
+
+- ✅ `npm run build` succeeds with 0 errors
+- ✅ `main.js`: 134,916 bytes
+- ✅ `main.ts`: 4,416 → 2,141 lines (52% reduction!)
+- ✅ Deployed to test vault, Brad confirmed all 10 commands pass:
+  1. Bulk apply tags — ✅
+  2. Revert by folder — ✅
+  3. Revert by date — ✅
+  4. Undo last operation — ✅
+  5. Tag report — ✅
+  6. Validate tags — ✅ (no issues found, modal didn't pop)
+  7. Manage folder rules — ✅
+  8. File move — ✅
+  9. Tag current file — ✅
+  10. Revert all auto-tags — ✅
+
+### Notes from Testing:
+
+- **DatePickerModal** displays times in UTC — should be changed to local time (future fix)
+- **TagForge menu** with links to all commands requested for ease of access (future feature)
+
+### Blockers/Issues:
+
+- None
+
+---
+
 ## Next Session Prompt
 
 ```
-TagForge - Decomposition Phase 2: Extract Modals
+TagForge - Decomposition Phase 3: Extract Settings Tab
 
 Directory: C:\Users\bwales\projects\obsidian-plugins\tagforge\
 Current branch: feat/decomposition-project
@@ -105,14 +168,14 @@ Docs:
 - docs\launch-considerations\Decomposition Session Log.md - Session history
 - CLAUDE.md - Development guidelines
 
-Last Session: 2026-02-10 - Phase 1: Types & Constants
-- Created src/types.ts with 16 exported items
-- main.ts: 4,549 → 4,345 lines
-- Build verified, tested in Obsidian
+Last Session: 2026-02-10 - Phase 2: Modals
+- Extracted 9 modals to src/modals/
+- main.ts: 4,416 → 2,141 lines (52% reduction)
+- Build verified, all 10 commands tested in Obsidian
 
-THIS SESSION: Phase 2 — Extract Modals
-Move all 9 modal classes from main.ts to individual files in src/modals/.
-See Decomposition Implementation Guide.md → Phase 2 for exact details.
+THIS SESSION: Phase 3 — Extract Settings Tab
+Move TagForgeSettingTab from main.ts to src/settings.ts.
+See Decomposition Implementation Guide.md → Phase 3 for exact details.
 
 Build & Deploy:
 npm run build → npm run deploy:test → Brad tests in Obsidian
@@ -141,4 +204,19 @@ Phase 1 of main.ts decomposition:
 - Remove ~204 lines of inline definitions from main.ts (4,549 → 4,345)
 - All types explicitly exported for future module consumption
 - Build output: 134,023 bytes (+29 from import overhead)
+```
+
+### Phase 2
+```
+refactor: extract 9 modal classes to src/modals/
+
+Phase 2 of main.ts decomposition:
+- Extract BulkPreviewModal (719 lines), RulesManagementModal (542),
+  GroupedMoveConfirmationModal (197), TagReportModal (190),
+  ValidationResultsModal (144), UndoHistoryModal (143),
+  MoveConfirmationModal (127), DatePickerModal (101), FolderPickerModal (80)
+- Remove Modal from main.ts Obsidian imports
+- main.ts: 4,416 → 2,141 lines (52% reduction)
+- Build output: 134,916 bytes
+- All 10 commands tested and passing
 ```

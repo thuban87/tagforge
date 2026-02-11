@@ -55,7 +55,7 @@ tagforge/
 |-------|------|------------:|:-------------:|------|--------|
 | **0** | esbuild config update | 0 | 4,549 | 🟢 None | ✅ Done |
 | **1** | Types + constants | ~205 | ~4,345 | 🟢 Low | ✅ Done |
-| **2** | Modals | ~2,285 | ~2,060 | 🟢 Low | |
+| **2** | Modals | ~2,285 | ~2,060 | 🟢 Low | ✅ Done |
 | **3** | Settings tab | ~265 | ~1,795 | 🟢 Low | |
 | **4** | Services extraction | ~1,535 | ~260 | 🟠 Medium | |
 | **5** | Final cleanup | — | ~250 | 🟢 Low | |
@@ -190,9 +190,9 @@ import {
 
 ---
 
-## Phase 2: Extract Modals
+## Phase 2: Extract Modals ✅
 
-**Goal:** Move all 9 modal classes to individual files in `src/modals/`.
+> **Completed:** 2026-02-10 | **Build Verified:** `main.js` 134,916 bytes | **main.ts:** 4,416 → 2,141 lines
 
 ### Important Pattern
 

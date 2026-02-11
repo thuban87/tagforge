@@ -1,7 +1,7 @@
 # TagForge Handoff Log
 
-**Last Updated:** January 3, 2025
-**Current Phase:** Post-v1.0.0 - Bug Fixes & Polish
+**Last Updated:** February 10, 2026
+**Current Phase:** Post-v1.0.0 - Decomposition Refactor
 **Current Branch:** main
 **GitHub:** Initialized and connected
 **Version:** 1.0.1
@@ -19,10 +19,47 @@ Breaking the 4,549-line `main.ts` monolith into a modular `src/` structure acros
 |-------|------|--------|
 | 0 | esbuild config + directory scaffold | ✅ Done |
 | 1 | Extract types & constants → `src/types.ts` | ✅ Done |
-| 2 | Extract 9 modals → `src/modals/` | |
+| 2 | Extract 9 modals → `src/modals/` | ✅ Done |
 | 3 | Extract settings tab → `src/settings.ts` | |
 | 4 | Extract 7 services → `src/services/` | |
 | 5 | Final cleanup of `main.ts` | |
+
+---
+
+## Session: February 10, 2026 - Phase 2: Extract Modals
+
+### Session Summary
+
+Extracted all 9 modal classes from `main.ts` into individual files in `src/modals/`. This is the largest single reduction in `main.ts` size — **52% reduction** (4,416 → 2,141 lines). All 10 plugin commands tested and passing.
+
+### What Was Done
+
+| Item | Details |
+|------|---------|
+| 9 modal extractions | Each modal moved to its own file in `src/modals/` |
+| `import type` pattern | Used for `TagForgePlugin` in modals that need it (prevents circular deps) |
+| `Modal` removed from main.ts imports | No longer directly used in main.ts |
+| Build verified | `main.js`: 134,916 bytes, 0 errors |
+| All 10 commands tested | Brad confirmed all passing in test vault |
+
+### Files Created
+
+| File | Lines |
+|------|-------|
+| `src/modals/BulkPreviewModal.ts` | 719 |
+| `src/modals/RulesManagementModal.ts` | 542 |
+| `src/modals/GroupedMoveConfirmationModal.ts` | 197 |
+| `src/modals/TagReportModal.ts` | 190 |
+| `src/modals/ValidationResultsModal.ts` | 144 |
+| `src/modals/UndoHistoryModal.ts` | 143 |
+| `src/modals/MoveConfirmationModal.ts` | 127 |
+| `src/modals/DatePickerModal.ts` | 101 |
+| `src/modals/FolderPickerModal.ts` | 80 |
+
+### Notes from Testing
+
+- **DatePickerModal** displays times in UTC — should be changed to local time
+- **TagForge menu** with links to all commands requested for ease of access
 
 ---
 
@@ -398,6 +435,11 @@ onClose() {
 ## Next Session Prompt
 
 See `docs/launch-considerations/Decomposition Session Log.md` → Next Session Prompt
+
+### Known Future Items
+
+- DatePickerModal: Change UTC timestamps to local time
+- TagForge menu: Add command palette menu with links to all commands
 
 ---
 
