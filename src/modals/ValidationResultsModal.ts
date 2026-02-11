@@ -51,7 +51,7 @@ export class ValidationResultsModal extends Modal {
                 cls: 'bbab-tf-fix-btn',
             });
             fixBtn.addEventListener('click', async () => {
-                await this.plugin.fixValidationIssue(issue);
+                await this.plugin.validationService.fixValidationIssue(issue);
                 this.removeIssueAndRefresh(issue);
             });
 
@@ -83,7 +83,7 @@ export class ValidationResultsModal extends Modal {
         });
         fixAllBtn.addEventListener('click', async () => {
             for (const issue of this.issues) {
-                await this.plugin.fixValidationIssue(issue);
+                await this.plugin.validationService.fixValidationIssue(issue);
             }
             this.close();
             new Notice('All issues fixed!');

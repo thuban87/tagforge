@@ -49,7 +49,7 @@ export class MoveConfirmationModal extends Modal {
         pathInfo.createEl('div', { text: `To: ${this.newFolder}`, cls: 'bbab-tf-move-path' });
 
         // Check what tags will change
-        const newTags = this.plugin.getRulesForPath(this.file.path);
+        const newTags = this.plugin.tagResolver.getRulesForPath(this.file.path);
         const oldTracking = this.plugin.tagTracking[this.oldPath];
         const oldTags = oldTracking?.autoTags || [];
 

@@ -1,6 +1,6 @@
 # TagForge Handoff Log
 
-**Last Updated:** February 10, 2026
+**Last Updated:** February 10, 2026 (Phase 4 complete)
 **Current Phase:** Post-v1.0.0 - Decomposition Refactor
 **Current Branch:** main
 **GitHub:** Initialized and connected
@@ -21,7 +21,7 @@ Breaking the 4,549-line `main.ts` monolith into a modular `src/` structure acros
 | 1 | Extract types & constants → `src/types.ts` | ✅ Done |
 | 2 | Extract 9 modals → `src/modals/` | ✅ Done |
 | 3 | Extract settings tab → `src/settings.ts` | ✅ Done |
-| 4 | Extract 7 services → `src/services/` | |
+| 4 | Extract 7 services → `src/services/` | ✅ Done |
 | 5 | Final cleanup of `main.ts` | |
 
 ---
@@ -43,9 +43,29 @@ Extracted `TagForgeSettingTab` from `main.ts` to `src/settings.ts`. Added folder
 | Build verified | `main.js`: 135,053 bytes, 0 errors |
 | All 9 settings tests passed | Brad confirmed in test vault |
 
-### Next Session: Phase 4 — Extract Services
+### Next Session: Phase 5 — Final Cleanup
 
-The big one. Extract 7 service classes from `TagForgePlugin` methods into `src/services/`. See [Decomposition Implementation Guide](launch-considerations/Decomposition%20Implementation%20Guide.md) Phase 4 for details.
+Remove `.gitkeep` files, update `CLAUDE.md` with new file structure, final review. See [Decomposition Implementation Guide](launch-considerations/Decomposition%20Implementation%20Guide.md) Phase 5 for details.
+
+---
+
+## Session: February 10, 2026 - Phase 4: Extract Services
+
+### Session Summary
+
+Extracted 7 service classes from `TagForgePlugin` into `src/services/`, rewrote `main.ts` as a thin 297-line entry point. Updated 4 modal files to route through service instances. **main.ts reduced from 1,875 → 297 lines (84% reduction).** All 10 commands tested and passing.
+
+### What Was Done
+
+| Item | Details |
+|------|---------|
+| 7 service extractions | TagResolver (162), TagIO (125), HistoryService (86), ValidationService (107), BulkOperations (213), RevertService (379), MoveHandler (426) |
+| main.ts rewrite | Thin entry point with service initialization, command callbacks, and event handlers |
+| 4 modal updates | MoveConfirmationModal, GroupedMoveConfirmationModal, RulesManagementModal, ValidationResultsModal |
+| fs/path moved | Node.js `require` statements moved from main.ts to MoveHandler |
+| Pending move state | `pendingUndoPath`, `pendingUndoPaths`, `pendingMoves`, `pendingMoveTimeout` moved to MoveHandler |
+| Build verified | `main.js`: 143,851 bytes, 0 errors |
+| All 10 commands tested | Brad confirmed all passing in test vault |
 
 ---
 

@@ -62,7 +62,7 @@ export class GroupedMoveConfirmationModal extends Modal {
 
             // Check what tags apply to this destination
             const sampleFile = groupMoves[0];
-            const newTags = this.plugin.getRulesForPath(sampleFile.file.path);
+            const newTags = this.plugin.tagResolver.getRulesForPath(sampleFile.file.path);
             const oldTracking = this.plugin.tagTracking[sampleFile.oldPath];
             const oldTags = oldTracking?.autoTags || [];
 

@@ -513,7 +513,7 @@ export class RulesManagementModal extends Modal {
                     const folderIndex = level - 1;
                     if (folderIndex >= 0 && folderIndex < fileParts.length) {
                         const folderName = fileParts[folderIndex];
-                        const tag = this.plugin.folderNameToTag(folderName);
+                        const tag = this.plugin.tagResolver.folderNameToTag(folderName);
                         if (tag.length > 1 && /[a-z0-9]/.test(tag)) {
                             tagsToApply.push(tag);
                         }
@@ -526,11 +526,11 @@ export class RulesManagementModal extends Modal {
 
             if (uniqueTags.length === 0) continue;
 
-            const existingTags = await this.plugin.getFileTags(file);
+            const existingTags = await this.plugin.tagIO.getFileTags(file);
             const newTags = uniqueTags.filter(t => !existingTags.map(e => e.toLowerCase()).includes(t.toLowerCase()));
 
             if (newTags.length > 0) {
-                await this.plugin.applyTagsToFile(file.path, newTags);
+                await this.plugin.tagIO.applyTagsToFile(file.path, newTags);
                 applied++;
             }
         }
