@@ -865,18 +865,19 @@ Recommended order to tackle these fixes (all decisions are finalized):
 
 | Step | Item | Complexity | Files Changed |
 |------|------|-----------|---------------|
-| 1 | MEDIUM-4: Add period to description | Trivial | `manifest.json` |
-| 2 | MEDIUM-3: Set minAppVersion to 1.7.0 | Trivial | `manifest.json` |
-| 3 | HIGH-3: Fix command ID + sentence case | Simple | `main.ts` |
-| 4 | CRITICAL-3 + CRITICAL-4: Fix all settings headings | Moderate | `src/settings.ts` |
-| 5 | CRITICAL-1: Replace innerHTML | Moderate | `src/modals/BulkPreviewModal.ts` |
-| 6 | HIGH-2: Fix hardcoded colors | Simple | `styles.css` |
-| 7 | HIGH-1: Replace inline styles with CSS classes | Moderate | `src/settings.ts`, `src/modals/BulkPreviewModal.ts`, `src/modals/RulesManagementModal.ts`, `styles.css` |
-| 8 | MEDIUM-1: Fix document listener leak | Moderate | `src/settings.ts` |
-| 9 | MEDIUM-5: Register untracked timers | Moderate | `src/services/MoveHandler.ts`, `src/modals/GroupedMoveConfirmationModal.ts` |
-| 10 | CRITICAL-2 + MEDIUM-2: Replace Node.js require with Vault Adapter API | Complex | `src/services/MoveHandler.ts` |
+| 1 | NEW: Create `versions.json` for BRAT compatibility | Trivial | `versions.json` (new) |
+| 2 | MEDIUM-4: Add period to description | Trivial | `manifest.json` |
+| 3 | MEDIUM-3: Set minAppVersion to 1.7.0 | Trivial | `manifest.json` |
+| 4 | HIGH-3: Fix command ID + sentence case | Simple | `main.ts` |
+| 5 | CRITICAL-3 + CRITICAL-4: Fix all settings headings | Moderate | `src/settings.ts` |
+| 6 | CRITICAL-1: Replace innerHTML | Moderate | `src/modals/BulkPreviewModal.ts` |
+| 7 | HIGH-2: Fix hardcoded colors | Simple | `styles.css` |
+| 8 | HIGH-1: Replace inline styles with CSS classes | Moderate | `src/settings.ts`, `src/modals/BulkPreviewModal.ts`, `src/modals/RulesManagementModal.ts`, `styles.css` |
+| 9 | MEDIUM-1: Fix document listener leak | Moderate | `src/settings.ts` |
+| 10 | MEDIUM-5: Register untracked timers | Moderate | `src/services/MoveHandler.ts`, `src/modals/GroupedMoveConfirmationModal.ts` |
+| 11 | CRITICAL-2 + MEDIUM-2: Replace Node.js require with Vault Adapter API | Complex | `src/services/MoveHandler.ts` |
 
-Steps 1-3 can be done in minutes. Steps 4-8 are straightforward replacements. Steps 9-10 require careful testing of the move/cancel-move flow.
+Steps 1-4 can be done in minutes. Steps 5-9 are straightforward replacements. Steps 10-11 require careful testing of the move/cancel-move flow.
 
 ---
 
