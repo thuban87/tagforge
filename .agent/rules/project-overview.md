@@ -38,6 +38,9 @@ Only `main.js`, `manifest.json`, and `styles.css` need to exist in the productio
 ---
 
 ## Development Session Workflow
+> [!CAUTION]
+> **HARD STOP:** Never update documentation until Brad has tested and confirmed. 
+> No exceptions, no matter how "trivial" the code change seems.
 
 1. **Review & Discuss** — Check Handoff Log and ADR Priority List first
 2. **Clarify** — Requirements, scope, and feature status

@@ -1,11 +1,130 @@
 # TagForge Handoff Log
 
-**Last Updated:** January 3, 2025
-**Current Phase:** Post-v1.0.0 - Bug Fixes & Polish
+**Last Updated:** February 10, 2026 (Decomposition COMPLETE)
+**Current Phase:** Post-v1.0.0 - Decomposition Complete
 **Current Branch:** main
 **GitHub:** Initialized and connected
 **Version:** 1.0.1
-**Total Features Implemented:** 34 (across 9 phases) + marketplace prep + UI improvements + bulk edit mode + folder rules system
+**Total Features Implemented:** 34 (across 9 phases) + marketplace prep + UI improvements + bulk edit mode + folder rules system + TagForge Menu modal
+
+---
+
+## Decomposition: main.ts → src/ Modular Architecture ✅ COMPLETE
+
+Broke the 4,549-line `main.ts` monolith into a modular `src/` structure across 6 phases.
+
+**Docs:** [Decomposition Implementation Guide](docs/launch-considerations/Decomposition%20Implementation%20Guide.md) | [Session Log](docs/launch-considerations/Decomposition%20Session%20Log.md)
+
+| Phase | What | Status |
+|-------|------|--------|
+| 0 | esbuild config + directory scaffold | ✅ Done |
+| 1 | Extract types & constants → `src/types.ts` | ✅ Done |
+| 2 | Extract 9 modals → `src/modals/` | ✅ Done |
+| 3 | Extract settings tab → `src/settings.ts` | ✅ Done |
+| 4 | Extract 7 services → `src/services/` | ✅ Done |
+| 5 | Final cleanup of `main.ts` | ✅ Done |
+
+---
+
+## Session: February 10, 2026 - Phase 5: Final Cleanup + Bonus Features
+
+### Session Summary
+
+Completed decomposition Phase 5. Refactored `onload()` into 4 private helper methods. Deleted `.gitkeep` files. Fixed DatePickerModal UTC→local time. Created TagForge Menu modal with grouped commands. Added HARD STOP workflow reminder to `CLAUDE.md`.
+
+### What Was Done
+
+| Item | Details |
+|------|---------|
+| `main.ts` refactored | `onload()` split into `initializeServices()`, `registerCommands()`, `registerRibbonIcons()`, `registerEventHandlers()` |
+| `.gitkeep` cleanup | Deleted 3 placeholder files from `src/`, `src/modals/`, `src/services/` |
+| DatePicker fix | UTC timestamps → local time via `toLocaleDateString()` |
+| TagForge Menu modal | New `src/modals/TagForgeMenuModal.ts` — grouped commands (Add/Remove/System), ordered least→most impactful |
+| `CLAUDE.md` | Added HARD STOP caution block to dev workflow |
+| Build verified | `main.js`: 144,569 bytes, 0 errors, `main.ts`: 296 lines |
+| All tests passed | Brad confirmed menu, date picker, and all smoke tests |
+
+### Known Items for Future Sessions
+
+- Update `CLAUDE.md` file structure section to reflect new modular layout
+- Update `Codebase Stats.md` with current line counts for all 19+ files
+- See `ADR Priority List` and `Idea List` for planned features
+
+---
+
+## Session: February 10, 2026 - Phase 3: Extract Settings Tab
+
+### Session Summary
+
+Extracted `TagForgeSettingTab` from `main.ts` to `src/settings.ts`. Added folder path autocomplete to the alias input field. `main.ts` reduced from 2,141 → 1,875 lines. All 9 settings tests passing.
+
+### What Was Done
+
+| Item | Details |
+|------|---------|
+| Settings tab extraction | `TagForgeSettingTab` moved to `src/settings.ts` (~330 lines) |
+| Imports cleaned | Removed `PluginSettingTab`/`Setting` from main.ts, added `TagForgeSettingTab` import |
+| Folder autocomplete | Added vault folder suggestions dropdown to alias folder path input |
+| Autocomplete CSS | Added dropdown styles to `styles.css` |
+| Build verified | `main.js`: 135,053 bytes, 0 errors |
+| All 9 settings tests passed | Brad confirmed in test vault |
+
+---
+
+## Session: February 10, 2026 - Phase 4: Extract Services
+
+### Session Summary
+
+Extracted 7 service classes from `TagForgePlugin` into `src/services/`, rewrote `main.ts` as a thin 297-line entry point. Updated 4 modal files to route through service instances. **main.ts reduced from 1,875 → 297 lines (84% reduction).** All 10 commands tested and passing.
+
+### What Was Done
+
+| Item | Details |
+|------|---------|
+| 7 service extractions | TagResolver (162), TagIO (125), HistoryService (86), ValidationService (107), BulkOperations (213), RevertService (379), MoveHandler (426) |
+| main.ts rewrite | Thin entry point with service initialization, command callbacks, and event handlers |
+| 4 modal updates | MoveConfirmationModal, GroupedMoveConfirmationModal, RulesManagementModal, ValidationResultsModal |
+| fs/path moved | Node.js `require` statements moved from main.ts to MoveHandler |
+| Pending move state | `pendingUndoPath`, `pendingUndoPaths`, `pendingMoves`, `pendingMoveTimeout` moved to MoveHandler |
+| Build verified | `main.js`: 143,851 bytes, 0 errors |
+| All 10 commands tested | Brad confirmed all passing in test vault |
+
+---
+
+## Session: February 10, 2026 - Phase 2: Extract Modals
+
+### Session Summary
+
+Extracted all 9 modal classes from `main.ts` into individual files in `src/modals/`. This is the largest single reduction in `main.ts` size — **52% reduction** (4,416 → 2,141 lines). All 10 plugin commands tested and passing.
+
+### What Was Done
+
+| Item | Details |
+|------|---------|
+| 9 modal extractions | Each modal moved to its own file in `src/modals/` |
+| `import type` pattern | Used for `TagForgePlugin` in modals that need it (prevents circular deps) |
+| `Modal` removed from main.ts imports | No longer directly used in main.ts |
+| Build verified | `main.js`: 134,916 bytes, 0 errors |
+| All 10 commands tested | Brad confirmed all passing in test vault |
+
+### Files Created
+
+| File | Lines |
+|------|-------|
+| `src/modals/BulkPreviewModal.ts` | 719 |
+| `src/modals/RulesManagementModal.ts` | 542 |
+| `src/modals/GroupedMoveConfirmationModal.ts` | 197 |
+| `src/modals/TagReportModal.ts` | 190 |
+| `src/modals/ValidationResultsModal.ts` | 144 |
+| `src/modals/UndoHistoryModal.ts` | 143 |
+| `src/modals/MoveConfirmationModal.ts` | 127 |
+| `src/modals/DatePickerModal.ts` | 101 |
+| `src/modals/FolderPickerModal.ts` | 80 |
+
+### Notes from Testing
+
+- **DatePickerModal** displays times in UTC — should be changed to local time
+- **TagForge menu** with links to all commands requested for ease of access
 
 ---
 
@@ -380,52 +499,12 @@ onClose() {
 
 ## Next Session Prompt
 
-```
-TagForge - v1.0.1 → Bug Fixes & Polish
+See `docs/launch-considerations/Decomposition Session Log.md` → Next Session Prompt
 
-**Directory:** C:\Users\bwales\projects\obsidian-plugins\tagforge\
-**Deploy to:** G:\My Drive\IT\Obsidian Vault\My Notebooks\.obsidian\plugins\tagforge\
-**Current branch:** main
-**Version:** 1.0.1
+### Known Future Items
 
-**Docs:**
-- docs\Handoff Log.md - START HERE for full context
-- docs\ADR-001-Architecture.md - Core architecture
-- docs\ADR-002-FolderRulesSystem.md - Folder rules system design
-- docs\ADR Priority List - TagForge.md
-
-**Last Session:** January 3, 2025 (Evening) - UI Polish
-- Tag Report mobile scroll, Bulk Add radio labels, Rules Manager expand/collapse
-- Fixed tracking merge bug in applyTagsToFile()
-- Nuclear option hidden on mobile, Rules Manager summary box, Bulk Add empty folders
-
-**PRIORITY 1: Investigate outstanding bug**
-
-Text fields becoming unresponsive after remove operations
-- Happens after remove commands, recovers after a few seconds
-- Might be Obsidian issue or event handler conflict
-- Add debug logging to trace
-
-**PRIORITY 2: UI/UX Polish (remaining)**
-
-| Task | Complexity |
-|------|------------|
-| Bulk Add: expand rule level options | Medium |
-| Validation Modal: filtering/sorting | Medium |
-| Folder-scoped nuclear option | Medium |
-
-**Key Code Locations:**
-- `getRulesForPath()`: main.ts ~line 1514 (with barrier logic)
-- `revertAllAutoTags()`: main.ts ~line 869 (respects protected tags)
-- `MoveConfirmationModal`: main.ts ~line 2876 (shows tag status)
-- `ValidationResultsModal`: main.ts ~line 3687 (has dismiss buttons)
-- `applyTagsToFile()`: main.ts ~line 1683 (merges tracking)
-
-**Build & Deploy:**
-npm run build → Reload Obsidian
-
-**esbuild externals:** 'obsidian', 'fs', 'path'
-```
+- DatePickerModal: Change UTC timestamps to local time
+- TagForge menu: Add command palette menu with links to all commands
 
 ---
 

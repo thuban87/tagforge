@@ -1,6 +1,6 @@
 # main.ts Decomposition — Implementation Guide
 
-> **Last Updated:** 2026-02-08 | **Purpose:** Step-by-step guide for breaking the 4,549-line `main.ts` monolith into a modular `src/` structure
+> **Last Updated:** 2026-02-10 | **Purpose:** Step-by-step guide for breaking the 4,549-line `main.ts` monolith into a modular `src/` structure
 
 > [!IMPORTANT]
 > This guide is designed so any agent can pick it up at any phase and continue. Each phase lists exact source locations, target files, and verification steps. **Always `npm run build` after each phase to verify.**
@@ -51,21 +51,23 @@ tagforge/
 
 ## Phase Execution Order
 
-| Phase | What | Lines Moved | main.ts After | Risk |
-|-------|------|------------:|:-------------:|------|
-| **0** | esbuild config update | 0 | 4,549 | 🟢 None |
-| **1** | Types + constants | ~205 | ~4,345 | 🟢 Low |
-| **2** | Modals | ~2,285 | ~2,060 | 🟢 Low |
-| **3** | Settings tab | ~265 | ~1,795 | 🟢 Low |
-| **4** | Services extraction | ~1,535 | ~260 | 🟠 Medium |
-| **5** | Final cleanup | — | ~250 | 🟢 Low |
+| Phase | What | Lines Moved | main.ts After | Risk | Status |
+|-------|------|------------:|:-------------:|------|--------|
+| **0** | esbuild config update | 0 | 4,549 | 🟢 None | ✅ Done |
+| **1** | Types + constants | ~205 | ~4,345 | 🟢 Low | ✅ Done |
+| **2** | Modals | ~2,285 | ~2,060 | 🟢 Low | ✅ Done |
+| **3** | Settings tab | ~265 | ~1,795 | 🟢 Low | ✅ Done |
+| **4** | Services extraction | ~1,535 | ~260 | 🟠 Medium | ✅ Done |
+| **5** | Final cleanup | — | ~250 | 🟢 Low | ✅ Done |
 
 > [!TIP]
 > **Do one phase per session.** Build-verify after each. This preserves the ability to git commit between phases for easy rollback.
 
 ---
 
-## Phase 0: esbuild Configuration
+## Phase 0: esbuild Configuration ✅
+
+> **Completed:** 2026-02-10 | **Build Verified:** `main.js` byte-identical (133,994 bytes)
 
 **Goal:** Update the build system to handle multi-file `src/` imports.
 
@@ -102,7 +104,9 @@ The current `esbuild.config.mjs` bundles `main.ts` only. Since esbuild follows i
 
 ---
 
-## Phase 1: Extract Types & Constants
+## Phase 1: Extract Types & Constants ✅
+
+> **Completed:** 2026-02-10 | **Build Verified:** `main.js` 134,023 bytes (+29 from import overhead)
 
 **Goal:** Move all interfaces, type aliases, and top-level constants to `src/types.ts`.
 
@@ -186,9 +190,9 @@ import {
 
 ---
 
-## Phase 2: Extract Modals
+## Phase 2: Extract Modals ✅
 
-**Goal:** Move all 9 modal classes to individual files in `src/modals/`.
+> **Completed:** 2026-02-10 | **Build Verified:** `main.js` 134,916 bytes | **main.ts:** 4,416 → 2,141 lines
 
 ### Important Pattern
 
@@ -370,18 +374,21 @@ Remove all the class blocks and their preceding section-comment headers from mai
 
 ---
 
-## Phase 3: Extract Settings Tab
+## Phase 3: Extract Settings Tab ✅
+
+**Status:** Complete (2026-02-10)
 
 **Goal:** Move `TagForgeSettingTab` to `src/settings.ts`.
 
-**Source:** L3251–3511
+**Source:** L1880–2141 (post-Phase 2 line numbers)
 **Target:** `src/settings.ts`
 
 ```typescript
 // src/settings.ts
-import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
+import { App, PluginSettingTab, Setting, Notice, TFolder } from 'obsidian';
 import type TagForgePlugin from '../main';
 import { TagForgeSettings } from './types';
+import { RulesManagementModal } from './modals/RulesManagementModal';
 
 export class TagForgeSettingTab extends PluginSettingTab {
     plugin: TagForgePlugin;
@@ -392,10 +399,12 @@ export class TagForgeSettingTab extends PluginSettingTab {
     }
 
     display(): void {
-        // ... (copy L3259–3510)
+        // ... (copy L1888–2140)
     }
 }
 ```
+
+> **Note:** Guide originally didn't list `RulesManagementModal` as a needed import, but the settings tab instantiates it. `TFolder` was added for folder alias autocomplete.
 
 ### Update main.ts
 
@@ -403,10 +412,13 @@ export class TagForgeSettingTab extends PluginSettingTab {
 import { TagForgeSettingTab } from './src/settings';
 ```
 
+Also remove `PluginSettingTab` and `Setting` from the Obsidian import (no longer used in main.ts).
+
 ### Verification
 - `npm run build` succeeds
 - Settings tab opens and all settings render correctly
 - Changing settings persists properly
+- Folder alias autocomplete shows vault folders
 
 ---
 
@@ -658,7 +670,9 @@ this.moveHandler = new MoveHandler(this);
 
 ---
 
-## Phase 5: Final Cleanup
+## Phase 5: Final Cleanup ✅
+
+> **Completed:** 2026-02-10 | **Build Verified:** `main.js` 144,569 bytes | **main.ts:** 296 lines
 
 **Goal:** Clean up `main.ts` to be a thin entry point.
 
