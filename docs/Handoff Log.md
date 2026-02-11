@@ -18,7 +18,7 @@ Breaking the 4,549-line `main.ts` monolith into a modular `src/` structure acros
 | Phase | What | Status |
 |-------|------|--------|
 | 0 | esbuild config + directory scaffold | ✅ Done |
-| 1 | Extract types & constants → `src/types.ts` | |
+| 1 | Extract types & constants → `src/types.ts` | ✅ Done |
 | 2 | Extract 9 modals → `src/modals/` | |
 | 3 | Extract settings tab → `src/settings.ts` | |
 | 4 | Extract 7 services → `src/services/` | |

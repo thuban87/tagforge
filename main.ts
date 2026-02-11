@@ -1,112 +1,17 @@
 import { App, Plugin, PluginSettingTab, Setting, Notice, TFile, Modal, TFolder, Platform } from 'obsidian';
-
-// Windows system files that are safe to delete when cleaning up empty folders
-const WINDOWS_SYSTEM_FILES = new Set(['desktop.ini', 'thumbs.db', '.ds_store']);
+import {
+	TagForgeSettings, TagTrackingEntry, FolderRule, OperationFileState,
+	TagOperation, TagForgeData, ValidationIssue, EnhancedPreviewItem,
+	MoveConfirmationResult, PendingMoveOperation, GroupedMoveResult,
+	WINDOWS_SYSTEM_FILES, MAX_HISTORY_SIZE, UNDO_FILE_DISPLAY_LIMIT,
+	DEFAULT_SETTINGS, DEFAULT_DATA,
+} from './src/types';
 
 // Node.js modules (loaded at runtime in Electron)
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const fs = require('fs') as typeof import('fs');
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const nodePath = require('path') as typeof import('path');
-
-// ============================================================================
-// Settings Interface
-// ============================================================================
-
-interface TagForgeSettings {
-	// Core settings
-	autoTagEnabled: boolean;
-	inheritDepth: number;
-	showMoveConfirmation: boolean;
-	rememberedMoveAction: 'continue' | 'leave' | null;
-
-	// Folder-based rules (Phase 2+)
-	folderMappings: Record<string, string[]>;
-	folderAliases: Record<string, string[]>;  // folder path -> array of tag names
-
-	// Exclusions and protection
-	ignorePaths: string[];
-	protectedTags: string[];
-
-	// Advanced rules (Phase 7+)
-	contentRules: Array<{ pattern: string; tags: string[] }>;
-	filenameRules: Array<{ pattern: string; tags: string[] }>;
-}
-
-// ============================================================================
-// Tag Tracking Interface (for internal plugin data)
-// ============================================================================
-
-interface TagTrackingEntry {
-	autoTags: string[];
-	lastUpdated: string;
-}
-
-// ============================================================================
-// Folder Rules System (Phase 10 - Explicit Rules)
-// ============================================================================
-
-interface FolderRule {
-	tags: string[];                      // Custom/additional tags to apply
-	folderTagLevels: number[];           // Which folder levels to derive tags from (1=first level, 2=second, etc.)
-	applyDownLevels: 'all' | number[];   // 'all' or specific levels [1, 2, 4]
-	inheritFromAncestors: boolean;       // Also receive tags from parent rules?
-	applyToNewFiles: boolean;            // Trigger on file creation?
-	createdAt: string;                   // ISO timestamp
-	lastModified: string;                // ISO timestamp
-}
-
-// ============================================================================
-// Operation History (Phase 8 - Undo/History)
-// ============================================================================
-
-interface OperationFileState {
-	path: string;
-	tagsBefore: string[];
-	tagsAfter: string[];
-	trackingBefore?: string[];  // Auto-tags that were tracked before the operation
-}
-
-interface TagOperation {
-	id: string;
-	type: 'apply' | 'remove' | 'bulk' | 'move' | 'revert';
-	description: string;
-	timestamp: string;
-	files: OperationFileState[];
-}
-
-const MAX_HISTORY_SIZE = 50;
-
-interface TagForgeData {
-	settings: TagForgeSettings;
-	tagTracking: Record<string, TagTrackingEntry>;
-	operationHistory: TagOperation[];
-	folderRules: Record<string, FolderRule>;  // Phase 10: Explicit folder rules
-}
-
-// ============================================================================
-// Default Settings
-// ============================================================================
-
-const DEFAULT_SETTINGS: TagForgeSettings = {
-	autoTagEnabled: true,
-	inheritDepth: 3,
-	showMoveConfirmation: true,
-	rememberedMoveAction: null,
-	folderMappings: {},
-	folderAliases: {},
-	ignorePaths: ['Templates', '.obsidian'],
-	protectedTags: [],
-	contentRules: [],
-	filenameRules: [],
-};
-
-const DEFAULT_DATA: TagForgeData = {
-	settings: DEFAULT_SETTINGS,
-	tagTracking: {},
-	operationHistory: [],
-	folderRules: {},  // Phase 10: No rules by default - fully explicit
-};
 
 // ============================================================================
 // Main Plugin Class
@@ -1960,26 +1865,8 @@ export default class TagForgePlugin extends Plugin {
 }
 
 // ============================================================================
-// Validation Issue Interface (Phase 8)
-// ============================================================================
-
-interface ValidationIssue {
-	type: 'orphaned-tracking' | 'missing-tags' | 'ignored-path-tracked';
-	filePath: string;
-	description: string;
-	tags?: string[];
-}
-
-// ============================================================================
 // Enhanced Bulk Preview Modal (Phase 3+)
 // ============================================================================
-
-interface EnhancedPreviewItem {
-	file: TFile;
-	currentTags: string[];        // All tags currently on the file
-	autoTags: string[];           // Tags tracked by TagForge (subset of currentTags)
-	folderTagsByLevel: string[][]; // Tags at each level: [[level1], [level2], ...]
-}
 
 class BulkPreviewModal extends Modal {
 	plugin: TagForgePlugin;
@@ -2896,24 +2783,6 @@ class DatePickerModal extends Modal {
 // Move Confirmation Modal (Phase 6)
 // ============================================================================
 
-interface MoveConfirmationResult {
-	action: 'continue' | 'leave' | 'cancel';
-	remember: boolean;
-}
-
-interface PendingMoveOperation {
-	file: TFile;
-	oldPath: string;
-	oldFolder: string;
-	newFolder: string;
-}
-
-interface GroupedMoveResult {
-	action: 'continue' | 'leave' | 'cancel';
-	excludedPaths: Set<string>;  // Files to skip (user unchecked them)
-	remember: boolean;
-}
-
 class MoveConfirmationModal extends Modal {
 	plugin: TagForgePlugin;
 	file: TFile;
@@ -3513,8 +3382,6 @@ class TagForgeSettingTab extends PluginSettingTab {
 // ============================================================================
 // Undo History Modal (Phase 8)
 // ============================================================================
-
-const UNDO_FILE_DISPLAY_LIMIT = 40;
 
 class UndoHistoryModal extends Modal {
 	operations: TagOperation[];
