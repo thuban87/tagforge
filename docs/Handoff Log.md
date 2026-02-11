@@ -9,6 +9,23 @@
 
 ---
 
+## Decomposition: main.ts → src/ Modular Architecture
+
+Breaking the 4,549-line `main.ts` monolith into a modular `src/` structure across 6 phases.
+
+**Docs:** [Decomposition Implementation Guide](docs/launch-considerations/Decomposition%20Implementation%20Guide.md) | [Session Log](docs/launch-considerations/Decomposition%20Session%20Log.md)
+
+| Phase | What | Status |
+|-------|------|--------|
+| 0 | esbuild config + directory scaffold | ✅ Done |
+| 1 | Extract types & constants → `src/types.ts` | |
+| 2 | Extract 9 modals → `src/modals/` | |
+| 3 | Extract settings tab → `src/settings.ts` | |
+| 4 | Extract 7 services → `src/services/` | |
+| 5 | Final cleanup of `main.ts` | |
+
+---
+
 ## Session: January 3, 2025 (Evening) - UI Polish
 
 ### Session Summary
@@ -380,52 +397,7 @@ onClose() {
 
 ## Next Session Prompt
 
-```
-TagForge - v1.0.1 → Bug Fixes & Polish
-
-**Directory:** C:\Users\bwales\projects\obsidian-plugins\tagforge\
-**Deploy to:** G:\My Drive\IT\Obsidian Vault\My Notebooks\.obsidian\plugins\tagforge\
-**Current branch:** main
-**Version:** 1.0.1
-
-**Docs:**
-- docs\Handoff Log.md - START HERE for full context
-- docs\ADR-001-Architecture.md - Core architecture
-- docs\ADR-002-FolderRulesSystem.md - Folder rules system design
-- docs\ADR Priority List - TagForge.md
-
-**Last Session:** January 3, 2025 (Evening) - UI Polish
-- Tag Report mobile scroll, Bulk Add radio labels, Rules Manager expand/collapse
-- Fixed tracking merge bug in applyTagsToFile()
-- Nuclear option hidden on mobile, Rules Manager summary box, Bulk Add empty folders
-
-**PRIORITY 1: Investigate outstanding bug**
-
-Text fields becoming unresponsive after remove operations
-- Happens after remove commands, recovers after a few seconds
-- Might be Obsidian issue or event handler conflict
-- Add debug logging to trace
-
-**PRIORITY 2: UI/UX Polish (remaining)**
-
-| Task | Complexity |
-|------|------------|
-| Bulk Add: expand rule level options | Medium |
-| Validation Modal: filtering/sorting | Medium |
-| Folder-scoped nuclear option | Medium |
-
-**Key Code Locations:**
-- `getRulesForPath()`: main.ts ~line 1514 (with barrier logic)
-- `revertAllAutoTags()`: main.ts ~line 869 (respects protected tags)
-- `MoveConfirmationModal`: main.ts ~line 2876 (shows tag status)
-- `ValidationResultsModal`: main.ts ~line 3687 (has dismiss buttons)
-- `applyTagsToFile()`: main.ts ~line 1683 (merges tracking)
-
-**Build & Deploy:**
-npm run build → Reload Obsidian
-
-**esbuild externals:** 'obsidian', 'fs', 'path'
-```
+See `docs/launch-considerations/Decomposition Session Log.md` → Next Session Prompt
 
 ---
 

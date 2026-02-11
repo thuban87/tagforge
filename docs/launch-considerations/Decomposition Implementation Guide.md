@@ -51,21 +51,23 @@ tagforge/
 
 ## Phase Execution Order
 
-| Phase | What | Lines Moved | main.ts After | Risk |
-|-------|------|------------:|:-------------:|------|
-| **0** | esbuild config update | 0 | 4,549 | 🟢 None |
-| **1** | Types + constants | ~205 | ~4,345 | 🟢 Low |
-| **2** | Modals | ~2,285 | ~2,060 | 🟢 Low |
-| **3** | Settings tab | ~265 | ~1,795 | 🟢 Low |
-| **4** | Services extraction | ~1,535 | ~260 | 🟠 Medium |
-| **5** | Final cleanup | — | ~250 | 🟢 Low |
+| Phase | What | Lines Moved | main.ts After | Risk | Status |
+|-------|------|------------:|:-------------:|------|--------|
+| **0** | esbuild config update | 0 | 4,549 | 🟢 None | ✅ Done |
+| **1** | Types + constants | ~205 | ~4,345 | 🟢 Low | |
+| **2** | Modals | ~2,285 | ~2,060 | 🟢 Low | |
+| **3** | Settings tab | ~265 | ~1,795 | 🟢 Low | |
+| **4** | Services extraction | ~1,535 | ~260 | 🟠 Medium | |
+| **5** | Final cleanup | — | ~250 | 🟢 Low | |
 
 > [!TIP]
 > **Do one phase per session.** Build-verify after each. This preserves the ability to git commit between phases for easy rollback.
 
 ---
 
-## Phase 0: esbuild Configuration
+## Phase 0: esbuild Configuration ✅
+
+> **Completed:** 2026-02-10 | **Build Verified:** `main.js` byte-identical (133,994 bytes)
 
 **Goal:** Update the build system to handle multi-file `src/` imports.
 
