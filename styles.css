@@ -1071,6 +1071,60 @@
     white-space: nowrap;
 }
 
+/* Folder Alias Autocomplete */
+
+.bbab-tf-alias-input-wrapper {
+    position: relative;
+    flex: 1;
+    min-width: 150px;
+}
+
+.bbab-tf-alias-input-wrapper .bbab-tf-alias-input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.bbab-tf-folder-suggestions {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 200px;
+    overflow-y: auto;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.bbab-tf-folder-suggestion-item {
+    padding: 0.4em 0.75em;
+    cursor: pointer;
+    font-family: var(--font-monospace);
+    font-size: 0.9em;
+    color: var(--text-normal);
+    border-bottom: 1px solid var(--background-modifier-border-hover);
+}
+
+.bbab-tf-folder-suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.bbab-tf-folder-suggestion-item:hover {
+    background: var(--background-secondary);
+    color: var(--text-accent);
+}
+
+.bbab-tf-folder-suggestion-more {
+    padding: 0.35em 0.75em;
+    font-size: 0.8em;
+    color: var(--text-faint);
+    font-style: italic;
+}
+
 /* ============================================================================
    Folder Picker Modal (Phase 3)
    ============================================================================ */

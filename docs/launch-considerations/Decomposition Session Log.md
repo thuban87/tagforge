@@ -220,3 +220,60 @@ Phase 2 of main.ts decomposition:
 - Build output: 134,916 bytes
 - All 10 commands tested and passing
 ```
+
+---
+
+## 2026-02-10 - Phase 3: Extract Settings Tab
+
+**Focus:** Move `TagForgeSettingTab` from `main.ts` to `src/settings.ts` + add folder alias autocomplete
+
+### Completed:
+
+- ✅ Created `src/settings.ts` with `TagForgeSettingTab` class (~330 lines with autocomplete)
+- ✅ Added `RulesManagementModal` import (guide omitted it, but settings tab needs it)
+- ✅ Removed `PluginSettingTab` and `Setting` from main.ts Obsidian import
+- ✅ Added `TagForgeSettingTab` import to main.ts
+- ✅ Removed entire settings class block from main.ts
+- ✅ Added folder path autocomplete to alias input (vault folder suggestions)
+- ✅ Added autocomplete CSS to styles.css
+
+### Files Changed:
+
+| File | Changes |
+|------|---------|
+| `src/settings.ts` | New — `TagForgeSettingTab` class with folder autocomplete |
+| `main.ts` | Removed settings class (2,141 → 1,875 lines, 266 lines removed) |
+| `styles.css` | Added autocomplete dropdown styles |
+
+### Testing Notes:
+
+- ✅ `npm run build` succeeds with 0 errors
+- ✅ `main.js`: 135,053 bytes (was 134,916 — 137 byte increase from import overhead)
+- ✅ `main.ts`: 2,141 → 1,875 lines (266 lines removed)
+- ✅ Deployed to test vault, Brad confirmed all 9 settings tests passing:
+  - Settings tab opens, all sections render
+  - Core settings persist (auto-tag, depth, move behavior)
+  - Rules manager button opens modal
+  - Ignore paths, protected tags persist
+  - Folder aliases display, add, remove
+  - Folder alias autocomplete shows vault folders
+  - Quick start info section renders
+
+### Blockers/Issues:
+
+- None
+
+### Commit Message:
+
+```
+refactor: extract settings tab to src/settings.ts
+
+Phase 3 of main.ts decomposition:
+- Extract TagForgeSettingTab class to src/settings.ts (~330 lines)
+- Add folder path autocomplete to alias input
+- Remove PluginSettingTab and Setting from main.ts Obsidian imports
+- main.ts: 2,141 → 1,875 lines (266 lines removed)
+- Build output: 135,053 bytes
+- All 9 settings tests passing
+```
+

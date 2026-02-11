@@ -20,9 +20,32 @@ Breaking the 4,549-line `main.ts` monolith into a modular `src/` structure acros
 | 0 | esbuild config + directory scaffold | ✅ Done |
 | 1 | Extract types & constants → `src/types.ts` | ✅ Done |
 | 2 | Extract 9 modals → `src/modals/` | ✅ Done |
-| 3 | Extract settings tab → `src/settings.ts` | |
+| 3 | Extract settings tab → `src/settings.ts` | ✅ Done |
 | 4 | Extract 7 services → `src/services/` | |
 | 5 | Final cleanup of `main.ts` | |
+
+---
+
+## Session: February 10, 2026 - Phase 3: Extract Settings Tab
+
+### Session Summary
+
+Extracted `TagForgeSettingTab` from `main.ts` to `src/settings.ts`. Added folder path autocomplete to the alias input field. `main.ts` reduced from 2,141 → 1,875 lines. All 9 settings tests passing.
+
+### What Was Done
+
+| Item | Details |
+|------|---------|
+| Settings tab extraction | `TagForgeSettingTab` moved to `src/settings.ts` (~330 lines) |
+| Imports cleaned | Removed `PluginSettingTab`/`Setting` from main.ts, added `TagForgeSettingTab` import |
+| Folder autocomplete | Added vault folder suggestions dropdown to alias folder path input |
+| Autocomplete CSS | Added dropdown styles to `styles.css` |
+| Build verified | `main.js`: 135,053 bytes, 0 errors |
+| All 9 settings tests passed | Brad confirmed in test vault |
+
+### Next Session: Phase 4 — Extract Services
+
+The big one. Extract 7 service classes from `TagForgePlugin` methods into `src/services/`. See [Decomposition Implementation Guide](launch-considerations/Decomposition%20Implementation%20Guide.md) Phase 4 for details.
 
 ---
 

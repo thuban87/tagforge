@@ -1,6 +1,6 @@
 # main.ts Decomposition — Implementation Guide
 
-> **Last Updated:** 2026-02-08 | **Purpose:** Step-by-step guide for breaking the 4,549-line `main.ts` monolith into a modular `src/` structure
+> **Last Updated:** 2026-02-10 | **Purpose:** Step-by-step guide for breaking the 4,549-line `main.ts` monolith into a modular `src/` structure
 
 > [!IMPORTANT]
 > This guide is designed so any agent can pick it up at any phase and continue. Each phase lists exact source locations, target files, and verification steps. **Always `npm run build` after each phase to verify.**
@@ -374,18 +374,21 @@ Remove all the class blocks and their preceding section-comment headers from mai
 
 ---
 
-## Phase 3: Extract Settings Tab
+## Phase 3: Extract Settings Tab ✅
+
+**Status:** Complete (2026-02-10)
 
 **Goal:** Move `TagForgeSettingTab` to `src/settings.ts`.
 
-**Source:** L3251–3511
+**Source:** L1880–2141 (post-Phase 2 line numbers)
 **Target:** `src/settings.ts`
 
 ```typescript
 // src/settings.ts
-import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
+import { App, PluginSettingTab, Setting, Notice, TFolder } from 'obsidian';
 import type TagForgePlugin from '../main';
 import { TagForgeSettings } from './types';
+import { RulesManagementModal } from './modals/RulesManagementModal';
 
 export class TagForgeSettingTab extends PluginSettingTab {
     plugin: TagForgePlugin;
@@ -396,10 +399,12 @@ export class TagForgeSettingTab extends PluginSettingTab {
     }
 
     display(): void {
-        // ... (copy L3259–3510)
+        // ... (copy L1888–2140)
     }
 }
 ```
+
+> **Note:** Guide originally didn't list `RulesManagementModal` as a needed import, but the settings tab instantiates it. `TFolder` was added for folder alias autocomplete.
 
 ### Update main.ts
 
@@ -407,10 +412,13 @@ export class TagForgeSettingTab extends PluginSettingTab {
 import { TagForgeSettingTab } from './src/settings';
 ```
 
+Also remove `PluginSettingTab` and `Setting` from the Obsidian import (no longer used in main.ts).
+
 ### Verification
 - `npm run build` succeeds
 - Settings tab opens and all settings render correctly
 - Changing settings persists properly
+- Folder alias autocomplete shows vault folders
 
 ---
 
